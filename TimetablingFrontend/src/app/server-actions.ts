@@ -8,78 +8,114 @@ const apiBase =
   "http://localhost:8080";
 
 export async function createProfessor(formData: FormData) {
-  const payload = {
-    name: String(formData.get("name") ?? "").trim(),
-  };
+  try {
+    const payload = {
+      name: String(formData.get("name") ?? "").trim(),
+    };
 
-  if (!payload.name) {
-    return;
+    if (!payload.name) {
+      return;
+    }
+
+    const response = await fetch(`${apiBase}/api/professors`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error(`Error creating professor: ${response.status}`);
+      return;
+    }
+
+    revalidatePath("/");
+  } catch (error) {
+    console.error("Error in createProfessor:", error);
   }
-
-  await fetch(`${apiBase}/api/professors`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  revalidatePath("/");
 }
 
 export async function updateProfessor(formData: FormData) {
-  const professorId = Number(formData.get("professorId") ?? 0);
-  const payload = {
-    name: String(formData.get("name") ?? "").trim(),
-  };
+  try {
+    const professorId = Number(formData.get("professorId") ?? 0);
+    const payload = {
+      name: String(formData.get("name") ?? "").trim(),
+    };
 
-  if (!professorId || !payload.name) {
-    return;
+    if (!professorId || !payload.name) {
+      return;
+    }
+
+    const response = await fetch(`${apiBase}/api/professors/${professorId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error(`Error updating professor: ${response.status}`);
+      return;
+    }
+
+    revalidatePath("/");
+  } catch (error) {
+    console.error("Error in updateProfessor:", error);
   }
-
-  await fetch(`${apiBase}/api/professors/${professorId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  revalidatePath("/");
 }
 
 export async function deleteProfessor(formData: FormData) {
-  const professorId = Number(formData.get("professorId") ?? 0);
-  if (!professorId) {
-    return;
+  try {
+    const professorId = Number(formData.get("professorId") ?? 0);
+    if (!professorId) {
+      return;
+    }
+
+    const response = await fetch(`${apiBase}/api/professors/${professorId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      console.error(`Error deleting professor: ${response.status}`);
+      return;
+    }
+
+    revalidatePath("/");
+  } catch (error) {
+    console.error("Error in deleteProfessor:", error);
   }
-
-  await fetch(`${apiBase}/api/professors/${professorId}`, {
-    method: "DELETE",
-  });
-
-  revalidatePath("/");
 }
 
 export async function createClassGroup(formData: FormData) {
-  const payload = {
-    name: String(formData.get("name") ?? "").trim(),
-    shiftType: String(formData.get("shiftType") ?? "REGULAR").trim(),
-  };
+  try {
+    const payload = {
+      name: String(formData.get("name") ?? "").trim(),
+      shiftType: String(formData.get("shiftType") ?? "REGULAR").trim(),
+    };
 
-  if (!payload.name) {
-    return;
+    if (!payload.name) {
+      return;
+    }
+
+    const response = await fetch(`${apiBase}/api/class-groups`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error(`Error creating class group: ${response.status}`);
+      return;
+    }
+
+    revalidatePath("/");
+  } catch (error) {
+    console.error("Error in createClassGroup:", error);
   }
-
-  await fetch(`${apiBase}/api/class-groups`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  revalidatePath("/");
 }
 
 export async function deleteClassGroup(formData: FormData) {
@@ -175,26 +211,35 @@ export async function startSolver() {
 }
 
 export async function createTimeslot(formData: FormData) {
-  const payload = {
-    dayOfWeek: Number(formData.get("dayOfWeek") ?? 0),
-    startTime: String(formData.get("startTime") ?? "").trim(),
-    endTime: String(formData.get("endTime") ?? "").trim(),
-    shiftType: String(formData.get("shiftType") ?? "REGULAR").trim(),
-  };
+  try {
+    const payload = {
+      dayOfWeek: Number(formData.get("dayOfWeek") ?? 0),
+      startTime: String(formData.get("startTime") ?? "").trim(),
+      endTime: String(formData.get("endTime") ?? "").trim(),
+      shiftType: String(formData.get("shiftType") ?? "REGULAR").trim(),
+    };
 
-  if (!payload.dayOfWeek || !payload.startTime || !payload.endTime) {
-    return;
+    if (!payload.dayOfWeek || !payload.startTime || !payload.endTime) {
+      return;
+    }
+
+    const response = await fetch(`${apiBase}/api/timeslots`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error(`Error creating timeslot: ${response.status}`);
+      return;
+    }
+
+    revalidatePath("/");
+  } catch (error) {
+    console.error("Error in createTimeslot:", error);
   }
-
-  await fetch(`${apiBase}/api/timeslots`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  revalidatePath("/");
 }
 
 export async function deleteTimeslot(formData: FormData) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition, useRef } from "react";
 import {
   Users,
   Calendar,
@@ -138,6 +138,14 @@ export default function Dashboard({ data }: DashboardProps) {
   const [selectedClassGroupId, setSelectedClassGroupId] = useState<number | null>(
     data.classGroups[0]?.id ?? null
   );
+  const [isPending, startTransition] = useTransition();
+
+  // Refs para os formulários
+  const professorFormRef = useRef<HTMLFormElement>(null);
+  const classFormRef = useRef<HTMLFormElement>(null);
+  const subjectFormRef = useRef<HTMLFormElement>(null);
+  const demandFormRef = useRef<HTMLFormElement>(null);
+  const timeslotFormRef = useRef<HTMLFormElement>(null);
 
   const openModal = (type: string) => {
     setModalType(type);
@@ -147,6 +155,38 @@ export default function Dashboard({ data }: DashboardProps) {
   const closeModal = () => {
     setModalOpen(false);
     setModalType(null);
+    // Reset all forms com delay para garantir
+    setTimeout(() => {
+      [
+        professorFormRef.current,
+        classFormRef.current,
+        subjectFormRef.current,
+        demandFormRef.current,
+        timeslotFormRef.current,
+      ].forEach((form) => {
+        if (form) {
+          form.reset();
+          // Limpar também os checkboxes e selects
+          const inputs = form.querySelectorAll(
+            'input[type="checkbox"], input[type="text"], input[type="number"], input[type="time"], select'
+          );
+          inputs.forEach((input: any) => {
+            if (input.type === "checkbox") {
+              input.checked = false;
+            }
+          });
+        }
+      });
+    }, 100);
+  };
+
+  // Handler para enviar e fechar modal
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    startTransition(async () => {
+      // Aguarda um pouco para a action ir ao backend
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      closeModal();
+    });
   };
 
   // Calcular shift type selecionado
@@ -653,7 +693,12 @@ export default function Dashboard({ data }: DashboardProps) {
         onClose={closeModal}
         title="Novo Professor"
       >
-        <form action={Actions.createProfessor} className="flex flex-col gap-4">
+        <form
+          ref={professorFormRef}
+          action={Actions.createProfessor}
+          onSubmit={handleFormSubmit}
+          className="flex flex-col gap-4"
+        >
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Nome Completo
@@ -667,9 +712,10 @@ export default function Dashboard({ data }: DashboardProps) {
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors"
+            disabled={isPending}
+            className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Salvar
+            {isPending ? "Salvando..." : "Salvar"}
           </button>
         </form>
       </Modal>
@@ -679,7 +725,12 @@ export default function Dashboard({ data }: DashboardProps) {
         onClose={closeModal}
         title="Nova Turma"
       >
-        <form action={Actions.createClassGroup} className="flex flex-col gap-4">
+        <form
+          ref={classFormRef}
+          action={Actions.createClassGroup}
+          onSubmit={handleFormSubmit}
+          className="flex flex-col gap-4"
+        >
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Nome da Turma
@@ -717,7 +768,12 @@ export default function Dashboard({ data }: DashboardProps) {
         onClose={closeModal}
         title="Nova Matéria"
       >
-        <form action={Actions.createSubject} className="flex flex-col gap-4">
+        <form
+          ref={subjectFormRef}
+          action={Actions.createSubject}
+          onSubmit={handleFormSubmit}
+          className="flex flex-col gap-4"
+        >
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Nome da Matéria
@@ -760,7 +816,12 @@ export default function Dashboard({ data }: DashboardProps) {
         onClose={closeModal}
         title="Nova Demanda"
       >
-        <form action={Actions.createDemand} className="flex flex-col gap-4">
+        <form
+          ref={demandFormRef}
+          action={Actions.createDemand}
+          onSubmit={handleFormSubmit}
+          className="flex flex-col gap-4 sm:grid-cols-2"
+        >
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Matéria
@@ -831,7 +892,12 @@ export default function Dashboard({ data }: DashboardProps) {
         onClose={closeModal}
         title="Novo Horário"
       >
-        <form action={Actions.createTimeslot} className="flex flex-col gap-4">
+        <form
+          ref={timeslotFormRef}
+          action={Actions.createTimeslot}
+          onSubmit={handleFormSubmit}
+          className="flex flex-col gap-4"
+        >
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Dia da Semana
