@@ -1,0 +1,128 @@
+{
+  "project_metadata": {
+    "name": "TimetablingProblem - Sistema de Otimização de Grade Horária",
+    "description": "Solução automatizada para resolver conflitos de grade escolar (Timetabling) considerando sobreposição de turnos (Integral vs Regular) e restrições de professores.",
+    "author": "Otavio Emanoel",
+    "target_institution": "ETEC / Escolas Técnicas",
+    "version": "1.0.0"
+  },
+  "tech_stack": {
+    "backend": {
+      "language": "Java 17+",
+      "framework": "Spring Boot 3.x",
+      "solver_engine": "Timefold Solver (fork do OptaPlanner)",
+      "orm": "Hibernate / Spring Data JPA",
+      "build_tool": "Maven ou Gradle"
+    },
+    "database": {
+      "engine": "PostgreSQL 15+",
+      "container_name": "etec_db"
+    },
+    "frontend": {
+      "framework": "Next.js 14 (App Router)",
+      "language": "TypeScript",
+      "styling": "Tailwind CSS",
+      "state_management": "TanStack Query (React Query) + Zustand",
+      "ui_components": "Shadcn/UI"
+    },
+    "infrastructure": {
+      "containerization": "Docker & Docker Compose",
+      "proxy": "Nginx (opcional para produção)"
+    }
+  },
+  "core_problem_definition": {
+    "description": "O conflito principal ocorre devido à assincronia de horários entre turmas do Ensino Médio Regular e do Ensino Técnico Integrado (M-Tec/AMS).",
+    "critical_conflict_scenario": {
+      "regular_shift": {
+        "description": "Sai mais cedo. A 6ª aula ocorre normalmente.",
+        "time_window": "11:30 - 12:20"
+      },
+      "integral_shift": {
+        "description": "Tem horário de almoço estendido.",
+        "time_window": "11:30 - 12:30 (Almoço)"
+      },
+      "conflict_logic": "Um professor não pode dar aula para o Regular às 11:30 se ele estiver escalado para supervisão de almoço ou aula no Integral no mesmo intervalo absoluto de tempo."
+    }
+  },
+  "database_schema_modeling": {
+    "tables": [
+      {
+        "name": "timeslot",
+        "columns": ["id", "day_of_week", "start_time", "end_time", "shift_type"],
+        "note": "Fundamental armazenar Hora Início/Fim para calcular interseção de tempo."
+      },
+      {
+        "name": "professor",
+        "columns": ["id", "name", "email", "max_weekly_hours"],
+        "relationships": ["has_many availability"]
+      },
+      {
+        "name": "availability",
+        "columns": ["professor_id", "timeslot_id", "status"],
+        "note": "Define se o professor PODE ou NÃO dar aula naquele slot."
+      },
+      {
+        "name": "class_group",
+        "columns": ["id", "name", "shift_type (INTEGRAL/REGULAR)"]
+      },
+      {
+        "name": "subject",
+        "columns": ["id", "name", "double_lesson_allowed"]
+      },
+      {
+        "name": "lesson",
+        "columns": ["id", "subject_id", "class_group_id", "teacher_id", "timeslot_id"],
+        "note": "A coluna timeslot_id começa nula e é preenchida pelo Timefold."
+      }
+    ]
+  },
+  "algorithm_constraints": {
+    "hard_constraints": {
+      "definition": "Regras que tornam a grade INVÁLIDA se quebradas. Peso penalidade: Alto.",
+      "rules": [
+        {
+          "name": "TeacherConflict",
+          "logic": "Um professor não pode ter duas aulas no mesmo timeslot."
+        },
+        {
+          "name": "ShiftOverlapConflict",
+          "logic": "Um professor não pode estar em dois timeslots diferentes que tenham interseção de horário (ex: 11:30-12:20 e 12:00-13:00)."
+        },
+        {
+          "name": "RoomConflict",
+          "logic": "Uma turma não pode ter duas aulas simultâneas."
+        },
+        {
+          "name": "TeacherUnavailability",
+          "logic": "Não alocar aula em horário que o professor marcou como indisponível."
+        }
+      ]
+    },
+    "soft_constraints": {
+      "definition": "Regras de PREFERÊNCIA. O sistema tenta atender, mas pode quebrar se necessário. Peso penalidade: Baixo.",
+      "rules": [
+        {
+          "name": "MinimizeGaps",
+          "logic": "Evitar 'janelas' (aulas vagas entre duas aulas) para o professor."
+        },
+        {
+          "name": "MaximizeDoubleLessons",
+          "logic": "Se uma matéria tem 2+ aulas, tentar agrupá-las em pares sequenciais."
+        },
+        {
+          "name": "TeacherDayPreference",
+          "logic": "Se o professor prefere concentrar aulas em poucos dias, tentar agrupar."
+        }
+      ]
+    }
+  },
+  "implementation_roadmap": {
+    "step_1": "Setup do Docker Compose com PostgreSQL e Spring Boot.",
+    "step_2": "Criação das Entidades JPA (Domain) e Repositories.",
+    "step_3": "Implementação da API REST básica (CRUD de Professores e Turmas).",
+    "step_4": "Configuração do Timefold Solver (Definição da @PlanningSolution e @PlanningEntity).",
+    "step_5": "Implementação da ConstraintProvider (A lógica pesada de validação).",
+    "step_6": "Criação do Frontend em Next.js para visualizar a grade (uso de CSS Grid ou Table).",
+    "step_7": "Integração Front-Back e testes com dados reais da Etec."
+  }
+}
