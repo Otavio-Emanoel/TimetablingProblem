@@ -1,0 +1,33 @@
+import {
+  SummaryResponse,
+  Professor,
+  ClassGroup,
+  Subject,
+  Demand,
+  Timeslot,
+  Unavailability,
+  GradeEntry,
+} from "@/types";
+
+const API_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+
+async function fetchAPI<T>(endpoint: string): Promise<T> {
+  const res = await fetch(`${API_URL}/api/${endpoint}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Erro ao carregar ${endpoint}: ${res.status}`);
+  }
+  return res.json();
+}
+
+export const api = {
+  getSummary: () => fetchAPI<SummaryResponse>("summary"),
+  getProfessors: () => fetchAPI<Professor[]>("professors"),
+  getClasses: () => fetchAPI<ClassGroup[]>("class-groups"),
+  getSubjects: () => fetchAPI<Subject[]>("subjects"),
+  getDemands: () => fetchAPI<Demand[]>("demands"),
+  getTimeslots: () => fetchAPI<Timeslot[]>("timeslots"),
+  getUnavailability: () => fetchAPI<Unavailability[]>("unavailability"),
+  getGrade: (classId: number) => fetchAPI<GradeEntry[]>(`grade/${classId}`),
+};

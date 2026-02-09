@@ -10,10 +10,9 @@ const apiBase =
 export async function createProfessor(formData: FormData) {
   const payload = {
     name: String(formData.get("name") ?? "").trim(),
-    maxWeeklyHours: Number(formData.get("maxWeeklyHours") ?? 0),
   };
 
-  if (!payload.name || payload.maxWeeklyHours <= 0) {
+  if (!payload.name) {
     return;
   }
 
@@ -32,10 +31,9 @@ export async function updateProfessor(formData: FormData) {
   const professorId = Number(formData.get("professorId") ?? 0);
   const payload = {
     name: String(formData.get("name") ?? "").trim(),
-    maxWeeklyHours: Number(formData.get("maxWeeklyHours") ?? 0),
   };
 
-  if (!professorId || !payload.name || payload.maxWeeklyHours <= 0) {
+  if (!professorId || !payload.name) {
     return;
   }
 
@@ -45,6 +43,19 @@ export async function updateProfessor(formData: FormData) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+
+  revalidatePath("/");
+}
+
+export async function deleteProfessor(formData: FormData) {
+  const professorId = Number(formData.get("professorId") ?? 0);
+  if (!professorId) {
+    return;
+  }
+
+  await fetch(`${apiBase}/api/professors/${professorId}`, {
+    method: "DELETE",
   });
 
   revalidatePath("/");
@@ -71,6 +82,19 @@ export async function createClassGroup(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function deleteClassGroup(formData: FormData) {
+  const classGroupId = Number(formData.get("classGroupId") ?? 0);
+  if (!classGroupId) {
+    return;
+  }
+
+  await fetch(`${apiBase}/api/class-groups/${classGroupId}`, {
+    method: "DELETE",
+  });
+
+  revalidatePath("/");
+}
+
 export async function createSubject(formData: FormData) {
   const payload = {
     name: String(formData.get("name") ?? "").trim(),
@@ -87,6 +111,19 @@ export async function createSubject(formData: FormData) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+
+  revalidatePath("/");
+}
+
+export async function deleteSubject(formData: FormData) {
+  const subjectId = Number(formData.get("subjectId") ?? 0);
+  if (!subjectId) {
+    return;
+  }
+
+  await fetch(`${apiBase}/api/subjects/${subjectId}`, {
+    method: "DELETE",
   });
 
   revalidatePath("/");
@@ -111,6 +148,19 @@ export async function createDemand(formData: FormData) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+
+  revalidatePath("/");
+}
+
+export async function deleteDemand(formData: FormData) {
+  const demandId = Number(formData.get("demandId") ?? 0);
+  if (!demandId) {
+    return;
+  }
+
+  await fetch(`${apiBase}/api/demands/${demandId}`, {
+    method: "DELETE",
   });
 
   revalidatePath("/");
@@ -142,6 +192,19 @@ export async function createTimeslot(formData: FormData) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+
+  revalidatePath("/");
+}
+
+export async function deleteTimeslot(formData: FormData) {
+  const timeslotId = Number(formData.get("timeslotId") ?? 0);
+  if (!timeslotId) {
+    return;
+  }
+
+  await fetch(`${apiBase}/api/timeslots/${timeslotId}`, {
+    method: "DELETE",
   });
 
   revalidatePath("/");
