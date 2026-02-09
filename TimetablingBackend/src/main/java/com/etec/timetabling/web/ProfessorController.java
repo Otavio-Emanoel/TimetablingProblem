@@ -3,7 +3,6 @@ package com.etec.timetabling.web;
 import com.etec.timetabling.domain.Professor;
 import com.etec.timetabling.repository.ProfessorRepository;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -44,9 +43,7 @@ public class ProfessorController {
     public Professor create(@Valid @RequestBody ProfessorRequest request) {
         Professor professor = new Professor();
         professor.setName(request.name());
-        professor.setEmail(request.email());
         professor.setMaxWeeklyHours(request.maxWeeklyHours());
-        professor.setUnavailability(request.unavailability());
         return professorRepository.save(professor);
     }
 
@@ -55,9 +52,7 @@ public class ProfessorController {
         Professor professor = professorRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         professor.setName(request.name());
-        professor.setEmail(request.email());
         professor.setMaxWeeklyHours(request.maxWeeklyHours());
-        professor.setUnavailability(request.unavailability());
         return professorRepository.save(professor);
     }
 
@@ -72,9 +67,7 @@ public class ProfessorController {
 
     public record ProfessorRequest(
         @NotBlank String name,
-        @Email String email,
-        @Min(1) int maxWeeklyHours,
-        String unavailability
+        @Min(1) int maxWeeklyHours
     ) {
     }
 }

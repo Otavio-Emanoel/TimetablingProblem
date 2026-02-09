@@ -10,17 +10,37 @@ const apiBase =
 export async function createProfessor(formData: FormData) {
   const payload = {
     name: String(formData.get("name") ?? "").trim(),
-    email: String(formData.get("email") ?? "").trim(),
     maxWeeklyHours: Number(formData.get("maxWeeklyHours") ?? 0),
-    unavailability: String(formData.get("unavailability") ?? "").trim(),
   };
 
-  if (!payload.name || !payload.email || payload.maxWeeklyHours <= 0) {
+  if (!payload.name || payload.maxWeeklyHours <= 0) {
     return;
   }
 
   await fetch(`${apiBase}/api/professors`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  revalidatePath("/");
+}
+
+export async function updateProfessor(formData: FormData) {
+  const professorId = Number(formData.get("professorId") ?? 0);
+  const payload = {
+    name: String(formData.get("name") ?? "").trim(),
+    maxWeeklyHours: Number(formData.get("maxWeeklyHours") ?? 0),
+  };
+
+  if (!professorId || !payload.name || payload.maxWeeklyHours <= 0) {
+    return;
+  }
+
+  await fetch(`${apiBase}/api/professors/${professorId}`, {
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
@@ -122,6 +142,42 @@ export async function createTimeslot(formData: FormData) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+
+  revalidatePath("/");
+}
+
+export async function createUnavailability(formData: FormData) {
+  const payload = {
+    professorId: Number(formData.get("professorId") ?? 0),
+    dayOfWeek: Number(formData.get("dayOfWeek") ?? 0),
+    startTime: String(formData.get("startTime") ?? "").trim(),
+    endTime: String(formData.get("endTime") ?? "").trim(),
+  };
+
+  if (!payload.professorId || !payload.dayOfWeek || !payload.startTime || !payload.endTime) {
+    return;
+  }
+
+  await fetch(`${apiBase}/api/unavailability`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  revalidatePath("/");
+}
+
+export async function deleteUnavailability(formData: FormData) {
+  const unavailabilityId = Number(formData.get("unavailabilityId") ?? 0);
+  if (!unavailabilityId) {
+    return;
+  }
+
+  await fetch(`${apiBase}/api/unavailability/${unavailabilityId}`, {
+    method: "DELETE",
   });
 
   revalidatePath("/");

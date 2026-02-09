@@ -3,9 +3,11 @@ package com.etec.timetabling.service;
 import com.etec.timetabling.domain.ClassGroup;
 import com.etec.timetabling.domain.Demand;
 import com.etec.timetabling.domain.Professor;
+import com.etec.timetabling.domain.ProfessorUnavailability;
 import com.etec.timetabling.domain.ScheduleEntry;
 import com.etec.timetabling.domain.Timeslot;
 import com.etec.timetabling.repository.DemandRepository;
+import com.etec.timetabling.repository.ProfessorUnavailabilityRepository;
 import com.etec.timetabling.repository.ScheduleEntryRepository;
 import com.etec.timetabling.repository.TimeslotRepository;
 import java.util.HashMap;
@@ -20,15 +22,18 @@ public class SolverService {
     private final DemandRepository demandRepository;
     private final ScheduleEntryRepository scheduleEntryRepository;
     private final TimeslotRepository timeslotRepository;
+    private final ProfessorUnavailabilityRepository unavailabilityRepository;
 
     public SolverService(
         DemandRepository demandRepository,
         ScheduleEntryRepository scheduleEntryRepository,
-        TimeslotRepository timeslotRepository
+        TimeslotRepository timeslotRepository,
+        ProfessorUnavailabilityRepository unavailabilityRepository
     ) {
         this.demandRepository = demandRepository;
         this.scheduleEntryRepository = scheduleEntryRepository;
         this.timeslotRepository = timeslotRepository;
+        this.unavailabilityRepository = unavailabilityRepository;
     }
 
     public SolverResult solve() {
@@ -36,6 +41,12 @@ public class SolverService {
 
         Map<Long, Set<Long>> professorBusy = new HashMap<>();
         Map<Long, Set<Long>> classGroupBusy = new HashMap<>();
+        Map<Long, List<ProfessorUnavailability>> professorBlocks = new HashMap<>();
+
+        for (ProfessorUnavailability block : unavailabilityRepository.findAll()) {
+            professorBlocks.computeIfAbsent(block.getProfessor().getId(), ignored -> new java.util.ArrayList<>())
+                .add(block);
+        }
 
         int scheduled = 0;
         int unscheduled = 0;
@@ -48,7 +59,14 @@ public class SolverService {
                 .findByShiftTypeOrderByDayOfWeekAscStartTimeAsc(classGroup.getShiftType());
 
             for (int i = 0; i < demand.getQuantityPerWeek(); i++) {
-                Timeslot timeslot = findAvailableSlot(timeslots, classGroup, professors, professorBusy, classGroupBusy);
+                Timeslot timeslot = findAvailableSlot(
+                    timeslots,
+                    classGroup,
+                    professors,
+                    professorBusy,
+                    classGroupBusy,
+                    professorBlocks
+                );
                 if (timeslot == null) {
                     unscheduled++;
                     continue;
@@ -78,7 +96,8 @@ public class SolverService {
         ClassGroup classGroup,
         List<Professor> professors,
         Map<Long, Set<Long>> professorBusy,
-        Map<Long, Set<Long>> classGroupBusy
+        Map<Long, Set<Long>> classGroupBusy,
+        Map<Long, List<ProfessorUnavailability>> professorBlocks
     ) {
         for (Timeslot timeslot : timeslots) {
             Long key = timeslot.getId();
@@ -93,6 +112,10 @@ public class SolverService {
                     conflict = true;
                     break;
                 }
+                if (isUnavailable(timeslot, professorBlocks.getOrDefault(professor.getId(), List.of()))) {
+                    conflict = true;
+                    break;
+                }
             }
 
             if (!conflict) {
@@ -101,6 +124,20 @@ public class SolverService {
         }
 
         return null;
+    }
+
+    private boolean isUnavailable(Timeslot timeslot, List<ProfessorUnavailability> blocks) {
+        for (ProfessorUnavailability block : blocks) {
+            if (block.getDayOfWeek() != timeslot.getDayOfWeek()) {
+                continue;
+            }
+            boolean overlap = timeslot.getStartTime().isBefore(block.getEndTime())
+                && timeslot.getEndTime().isAfter(block.getStartTime());
+            if (overlap) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public record SolverResult(int scheduled, int unscheduled) {

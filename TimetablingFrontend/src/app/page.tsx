@@ -5,7 +5,10 @@ import {
   createProfessor,
   createSubject,
   createTimeslot,
+  createUnavailability,
+  deleteUnavailability,
   startSolver,
+  updateProfessor,
 } from "./server-actions";
 
 type SummaryResponse = {
@@ -21,9 +24,15 @@ type SummaryResponse = {
 type Professor = {
   id: number;
   name: string;
-  email: string;
   maxWeeklyHours: number;
-  unavailability?: string | null;
+};
+
+type Unavailability = {
+  id: number;
+  professorId: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
 };
 
 type ClassGroup = {
@@ -139,6 +148,18 @@ async function getTimeslots(): Promise<Timeslot[]> {
   return response.json();
 }
 
+async function getUnavailability(): Promise<Unavailability[]> {
+  const response = await fetch(`${apiBase}/api/unavailability`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch unavailability: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 async function getGrade(classGroupId: number | null): Promise<GradeEntry[]> {
   if (!classGroupId) {
     return [];
@@ -166,6 +187,7 @@ export default async function Home({
   let subjects: Subject[] = [];
   let demands: Demand[] = [];
   let timeslots: Timeslot[] = [];
+  let unavailability: Unavailability[] = [];
   let gradeEntries: GradeEntry[] = [];
   let errorMessage: string | null = null;
 
@@ -182,6 +204,7 @@ export default async function Home({
     subjects = await getSubjects();
     demands = await getDemands();
     timeslots = await getTimeslots();
+    unavailability = await getUnavailability();
     const fallbackClassGroupId = selectedClassGroupId ?? classGroups[0]?.id ?? null;
     gradeEntries = await getGrade(fallbackClassGroupId);
   } catch (error) {
@@ -189,6 +212,13 @@ export default async function Home({
   }
 
   const days = ["Seg", "Ter", "Qua", "Qui", "Sex"];
+  const dayLabels: Record<number, string> = {
+    1: "Seg",
+    2: "Ter",
+    3: "Qua",
+    4: "Qui",
+    5: "Sex",
+  };
   const selectedClassGroup = classGroups.find(
     (group) => group.id === (selectedClassGroupId ?? classGroups[0]?.id)
   );
@@ -213,6 +243,13 @@ export default async function Home({
       entry,
     ])
   );
+  const unavailabilityByProfessor = new Map<number, Unavailability[]>();
+  for (const entry of unavailability) {
+    const list = unavailabilityByProfessor.get(entry.professorId) ?? [];
+    list.push(entry);
+    unavailabilityByProfessor.set(entry.professorId, list);
+  }
+  const professorNameById = new Map(professors.map((professor) => [professor.id, professor.name]));
 
   return (
     <div className="min-h-screen hero-gradient text-[color:var(--ink)]">
@@ -405,7 +442,6 @@ export default async function Home({
                   <thead className="bg-[color:var(--bg-strong)] text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                     <tr>
                       <th className="px-4 py-3">Nome</th>
-                      <th className="px-4 py-3">Email</th>
                       <th className="px-4 py-3">Max</th>
                       <th className="px-4 py-3">Indisponivel</th>
                     </tr>
@@ -416,16 +452,19 @@ export default async function Home({
                         <td className="px-4 py-3 font-semibold text-[color:var(--ink)]">
                           {professor.name}
                         </td>
-                        <td className="px-4 py-3">{professor.email}</td>
                         <td className="px-4 py-3">{professor.maxWeeklyHours}</td>
                         <td className="px-4 py-3">
-                          {professor.unavailability || "-"}
+                          {(unavailabilityByProfessor.get(professor.id) ?? [])
+                            .map((entry) =>
+                              `${dayLabels[entry.dayOfWeek] ?? entry.dayOfWeek} ${entry.startTime}-${entry.endTime}`
+                            )
+                            .join(", ") || "-"}
                         </td>
                       </tr>
                     ))}
                     {professors.length === 0 && !errorMessage && (
                       <tr>
-                        <td className="px-4 py-6 text-sm text-[color:var(--muted)]" colSpan={4}>
+                        <td className="px-4 py-6 text-sm text-[color:var(--muted)]" colSpan={3}>
                           Nenhum professor cadastrado.
                         </td>
                       </tr>
@@ -446,17 +485,6 @@ export default async function Home({
                 </div>
                 <div>
                   <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
-                    Email
-                  </label>
-                  <input
-                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
-                    name="email"
-                    type="email"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                     Max horas
                   </label>
                   <input
@@ -467,20 +495,177 @@ export default async function Home({
                     required
                   />
                 </div>
-                <div>
-                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
-                    Indisponibilidade
-                  </label>
-                  <input
-                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
-                    name="unavailability"
-                    placeholder="Ex: Ter-Manha"
-                  />
-                </div>
                 <button className="sm:col-span-2 rounded-2xl bg-[color:var(--forest)] px-4 py-3 text-sm font-semibold text-white">
                   Salvar professor
                 </button>
               </form>
+              <div className="mt-8 border-t border-[color:var(--grid)] pt-6">
+                <h4 className="text-lg font-semibold">Editar professor</h4>
+                <form action={updateProfessor} className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Professor
+                    </label>
+                    <select
+                      className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                      name="professorId"
+                      required
+                    >
+                      <option value="">Selecione</option>
+                      {professors.map((professor) => (
+                        <option key={professor.id} value={professor.id}>
+                          {professor.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Nome
+                    </label>
+                    <input
+                      className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                      name="name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Max horas
+                    </label>
+                    <input
+                      className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                      name="maxWeeklyHours"
+                      type="number"
+                      min={1}
+                      required
+                    />
+                  </div>
+                  <button className="sm:col-span-2 rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm font-semibold text-[color:var(--forest)]">
+                    Atualizar professor
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="glass-panel rounded-3xl p-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold">Indisponibilidade</h3>
+                  <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    {unavailability.length} registros
+                  </span>
+                </div>
+                <div className="mt-4 overflow-hidden rounded-2xl border border-[color:var(--grid)] bg-white">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-[color:var(--bg-strong)] text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      <tr>
+                        <th className="px-4 py-3">Professor</th>
+                        <th className="px-4 py-3">Dia</th>
+                        <th className="px-4 py-3">Inicio</th>
+                        <th className="px-4 py-3">Fim</th>
+                        <th className="px-4 py-3">Remover</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[color:var(--grid)]">
+                      {unavailability.map((entry) => (
+                        <tr key={entry.id} className="text-[color:var(--muted)]">
+                          <td className="px-4 py-3 font-semibold text-[color:var(--ink)]">
+                            {professorNameById.get(entry.professorId) ?? "-"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {dayLabels[entry.dayOfWeek] ?? entry.dayOfWeek}
+                          </td>
+                          <td className="px-4 py-3">{entry.startTime}</td>
+                          <td className="px-4 py-3">{entry.endTime}</td>
+                          <td className="px-4 py-3">
+                            <form action={deleteUnavailability}>
+                              <input type="hidden" name="unavailabilityId" value={entry.id} />
+                              <button className="rounded-full border border-[color:var(--grid)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                                Remover
+                              </button>
+                            </form>
+                          </td>
+                        </tr>
+                      ))}
+                      {unavailability.length === 0 && !errorMessage && (
+                        <tr>
+                          <td className="px-4 py-6 text-sm text-[color:var(--muted)]" colSpan={5}>
+                            Nenhum intervalo cadastrado.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="glass-panel-strong rounded-3xl p-6">
+                <h3 className="text-xl font-semibold">Adicionar indisponibilidade</h3>
+                <form action={createUnavailability} className="mt-4 space-y-4">
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Professor
+                    </label>
+                    <select
+                      className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                      name="professorId"
+                      required
+                    >
+                      <option value="">Selecione</option>
+                      {professors.map((professor) => (
+                        <option key={professor.id} value={professor.id}>
+                          {professor.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Dia da semana
+                    </label>
+                    <select
+                      className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                      name="dayOfWeek"
+                      required
+                    >
+                      <option value="">Selecione</option>
+                      <option value="1">Segunda</option>
+                      <option value="2">Terca</option>
+                      <option value="3">Quarta</option>
+                      <option value="4">Quinta</option>
+                      <option value="5">Sexta</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                        Inicio
+                      </label>
+                      <input
+                        className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                        name="startTime"
+                        type="time"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                        Fim
+                      </label>
+                      <input
+                        className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                        name="endTime"
+                        type="time"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <button className="w-full rounded-2xl bg-[color:var(--forest)] px-4 py-3 text-sm font-semibold text-white">
+                    Salvar intervalo
+                  </button>
+                </form>
+              </div>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">

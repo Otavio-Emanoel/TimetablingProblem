@@ -23,12 +23,6 @@ public class Professor {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, unique = true)
-    private String email;
-
     @Column(nullable = false)
     private int maxWeeklyHours;
-
-    @Column
-    private String unavailability;
 }
