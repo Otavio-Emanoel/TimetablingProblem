@@ -10,7 +10,7 @@ services:
       - "5432:5432"
 
   backend:
-    build: ./backend
+    build: ./TimetablingBackend
     ports:
       - "8080:8080"
     environment:
@@ -19,7 +19,7 @@ services:
       - db
 
   frontend:
-    build: ./frontend
+    build: ./TimetablingFrontend
     ports:
       - "3000:3000"
     environment:
