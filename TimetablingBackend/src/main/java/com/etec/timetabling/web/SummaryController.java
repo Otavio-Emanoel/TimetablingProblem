@@ -1,8 +1,10 @@
 package com.etec.timetabling.web;
 
 import com.etec.timetabling.repository.ClassGroupRepository;
+import com.etec.timetabling.repository.DemandRepository;
 import com.etec.timetabling.repository.LessonRepository;
 import com.etec.timetabling.repository.ProfessorRepository;
+import com.etec.timetabling.repository.ScheduleEntryRepository;
 import com.etec.timetabling.repository.SubjectRepository;
 import com.etec.timetabling.repository.TimeslotRepository;
 import java.time.Instant;
@@ -18,19 +20,25 @@ public class SummaryController {
     private final ClassGroupRepository classGroupRepository;
     private final SubjectRepository subjectRepository;
     private final LessonRepository lessonRepository;
+    private final DemandRepository demandRepository;
+    private final ScheduleEntryRepository scheduleEntryRepository;
 
     public SummaryController(
         TimeslotRepository timeslotRepository,
         ProfessorRepository professorRepository,
         ClassGroupRepository classGroupRepository,
         SubjectRepository subjectRepository,
-        LessonRepository lessonRepository
+        LessonRepository lessonRepository,
+        DemandRepository demandRepository,
+        ScheduleEntryRepository scheduleEntryRepository
     ) {
         this.timeslotRepository = timeslotRepository;
         this.professorRepository = professorRepository;
         this.classGroupRepository = classGroupRepository;
         this.subjectRepository = subjectRepository;
         this.lessonRepository = lessonRepository;
+        this.demandRepository = demandRepository;
+        this.scheduleEntryRepository = scheduleEntryRepository;
     }
 
     @GetMapping("/health")
@@ -45,7 +53,9 @@ public class SummaryController {
             professorRepository.count(),
             classGroupRepository.count(),
             subjectRepository.count(),
-            lessonRepository.count()
+            lessonRepository.count(),
+            demandRepository.count(),
+            scheduleEntryRepository.count()
         );
     }
 
@@ -57,7 +67,9 @@ public class SummaryController {
         long professors,
         long classGroups,
         long subjects,
-        long lessons
+        long lessons,
+        long demands,
+        long scheduleEntries
     ) {
     }
 }

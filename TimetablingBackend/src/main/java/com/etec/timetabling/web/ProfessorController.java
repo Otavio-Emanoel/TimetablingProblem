@@ -46,6 +46,7 @@ public class ProfessorController {
         professor.setName(request.name());
         professor.setEmail(request.email());
         professor.setMaxWeeklyHours(request.maxWeeklyHours());
+        professor.setUnavailability(request.unavailability());
         return professorRepository.save(professor);
     }
 
@@ -56,6 +57,7 @@ public class ProfessorController {
         professor.setName(request.name());
         professor.setEmail(request.email());
         professor.setMaxWeeklyHours(request.maxWeeklyHours());
+        professor.setUnavailability(request.unavailability());
         return professorRepository.save(professor);
     }
 
@@ -71,7 +73,8 @@ public class ProfessorController {
     public record ProfessorRequest(
         @NotBlank String name,
         @Email String email,
-        @Min(1) int maxWeeklyHours
+        @Min(1) int maxWeeklyHours,
+        String unavailability
     ) {
     }
 }

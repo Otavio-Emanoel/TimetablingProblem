@@ -28,4 +28,7 @@ public class Professor {
 
     @Column(nullable = false)
     private int maxWeeklyHours;
+
+    @Column
+    private String unavailability;
 }
