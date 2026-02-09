@@ -181,11 +181,16 @@ export default function Dashboard({ data }: DashboardProps) {
   };
 
   // Handler para enviar e fechar modal
-  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    startTransition(async () => {
-      // Aguarda um pouco para a action ir ao backend
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      closeModal();
+  const handleFormSubmit = (
+    e: React.FormEvent<HTMLFormElement>,
+    action: (formData: FormData) => Promise<void>
+  ) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    startTransition(() => {
+      void action(new FormData(form)).then(() => {
+        closeModal();
+      });
     });
   };
 
@@ -695,8 +700,7 @@ export default function Dashboard({ data }: DashboardProps) {
       >
         <form
           ref={professorFormRef}
-          action={Actions.createProfessor}
-          onSubmit={handleFormSubmit}
+          onSubmit={(e) => handleFormSubmit(e, Actions.createProfessor)}
           className="flex flex-col gap-4"
         >
           <div>
@@ -727,8 +731,7 @@ export default function Dashboard({ data }: DashboardProps) {
       >
         <form
           ref={classFormRef}
-          action={Actions.createClassGroup}
-          onSubmit={handleFormSubmit}
+          onSubmit={(e) => handleFormSubmit(e, Actions.createClassGroup)}
           className="flex flex-col gap-4"
         >
           <div>
@@ -756,9 +759,10 @@ export default function Dashboard({ data }: DashboardProps) {
           </div>
           <button
             type="submit"
-            className="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 transition-colors"
+            disabled={isPending}
+            className="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Salvar Turma
+            {isPending ? "Salvando..." : "Salvar Turma"}
           </button>
         </form>
       </Modal>
@@ -770,8 +774,7 @@ export default function Dashboard({ data }: DashboardProps) {
       >
         <form
           ref={subjectFormRef}
-          action={Actions.createSubject}
-          onSubmit={handleFormSubmit}
+          onSubmit={(e) => handleFormSubmit(e, Actions.createSubject)}
           className="flex flex-col gap-4"
         >
           <div>
@@ -804,9 +807,10 @@ export default function Dashboard({ data }: DashboardProps) {
           </div>
           <button
             type="submit"
-            className="w-full bg-violet-600 text-white py-2 rounded-lg font-bold hover:bg-violet-700 transition-colors"
+            disabled={isPending}
+            className="w-full bg-violet-600 text-white py-2 rounded-lg font-bold hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Salvar Matéria
+            {isPending ? "Salvando..." : "Salvar Matéria"}
           </button>
         </form>
       </Modal>
@@ -818,8 +822,7 @@ export default function Dashboard({ data }: DashboardProps) {
       >
         <form
           ref={demandFormRef}
-          action={Actions.createDemand}
-          onSubmit={handleFormSubmit}
+          onSubmit={(e) => handleFormSubmit(e, Actions.createDemand)}
           className="flex flex-col gap-4 sm:grid-cols-2"
         >
           <div>
@@ -880,9 +883,10 @@ export default function Dashboard({ data }: DashboardProps) {
           </label>
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors"
+            disabled={isPending}
+            className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Salvar Demanda
+            {isPending ? "Salvando..." : "Salvar Demanda"}
           </button>
         </form>
       </Modal>
@@ -894,8 +898,7 @@ export default function Dashboard({ data }: DashboardProps) {
       >
         <form
           ref={timeslotFormRef}
-          action={Actions.createTimeslot}
-          onSubmit={handleFormSubmit}
+          onSubmit={(e) => handleFormSubmit(e, Actions.createTimeslot)}
           className="flex flex-col gap-4"
         >
           <div>
@@ -954,9 +957,10 @@ export default function Dashboard({ data }: DashboardProps) {
           </div>
           <button
             type="submit"
-            className="w-full bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors"
+            disabled={isPending}
+            className="w-full bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Salvar Horário
+            {isPending ? "Salvando..." : "Salvar Horário"}
           </button>
         </form>
       </Modal>
