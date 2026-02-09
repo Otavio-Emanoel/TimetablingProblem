@@ -215,29 +215,54 @@ export default async function Home({
   );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f4d2b9,_#f6f2ea_40%,_#e9edf5_70%)] text-slate-900">
-      <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-12 px-6 py-16">
-        <header className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-6">
-            <p className="inline-flex items-center gap-2 rounded-full border border-slate-900/10 bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">
-              ETEC Timetabling
-            </p>
-            <h1 className="text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl">
-              Grade inteligente para turnos que nao se chocam.
+    <div className="min-h-screen hero-gradient text-[color:var(--ink)]">
+      <header className="mx-auto w-full max-w-7xl px-6 pt-10">
+        <nav className="flex flex-wrap items-center justify-between gap-4 text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">
+          <span className="font-semibold">ETEC Timetabling MVP</span>
+          <div className="flex flex-wrap items-center gap-4">
+            <a className="hover:text-[color:var(--forest)]" href="#visao">
+              Visao
+            </a>
+            <a className="hover:text-[color:var(--forest)]" href="#cadastro">
+              Cadastro
+            </a>
+            <a className="hover:text-[color:var(--forest)]" href="#curriculo">
+              Curriculo
+            </a>
+            <a className="hover:text-[color:var(--forest)]" href="#grade">
+              Grade
+            </a>
+          </div>
+        </nav>
+      </header>
+
+      <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-16 px-6 pb-24 pt-10">
+        <section
+          id="visao"
+          className="grid items-start gap-10 lg:grid-cols-[1.15fr_0.85fr]"
+        >
+          <div className="space-y-6 fade-up">
+            <div className="inline-flex items-center gap-3 rounded-full border border-[color:var(--grid)] bg-white/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--muted)]">
+              MVP de horarios inteligentes
+            </div>
+            <h1 className="title-display text-4xl font-semibold leading-tight sm:text-5xl">
+              O painel que transforma demandas em uma grade real, com co-teaching e
+              horarios configuraveis.
             </h1>
-            <p className="max-w-xl text-lg text-slate-600">
-              Conectado ao backend Spring Boot para monitorar o estado dos dados e
-              preparar o solver. O painel abaixo ja cria professores, turmas e demandas.
+            <p className="max-w-2xl text-lg text-[color:var(--muted)]">
+              Aqui o fluxo e simples: cadastre professores, turmas e materias. Depois
+              descreva as demandas por turma e clique em gerar. A grade usa os horarios
+              que voce definiu, com intervalos reais de inicio e fim.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-4">
               <Link
-                className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="rounded-full bg-[color:var(--forest)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-950/10 transition hover:scale-[1.02]"
                 href="/"
               >
                 Atualizar painel
               </Link>
               <a
-                className="rounded-full border border-slate-900/20 bg-white/70 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900/40"
+                className="rounded-full border border-[color:var(--grid)] bg-white/70 px-6 py-3 text-sm font-semibold text-[color:var(--muted)] transition hover:border-[color:var(--forest)]"
                 href={`${apiBase}/api/health`}
                 target="_blank"
                 rel="noreferrer"
@@ -245,10 +270,37 @@ export default async function Home({
                 Verificar API
               </a>
             </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="glass-panel rounded-2xl p-4 fade-in stagger-1">
+                <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                  Registro
+                </p>
+                <p className="mt-2 text-sm text-[color:var(--ink)]">
+                  Cadastre professores, turmas, materias e horarios em minutos.
+                </p>
+              </div>
+              <div className="glass-panel rounded-2xl p-4 fade-in stagger-2">
+                <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                  Demanda
+                </p>
+                <p className="mt-2 text-sm text-[color:var(--ink)]">
+                  Defina quantas aulas por semana e co-teaching.
+                </p>
+              </div>
+              <div className="glass-panel rounded-2xl p-4 fade-in stagger-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                  Grade
+                </p>
+                <p className="mt-2 text-sm text-[color:var(--ink)]">
+                  Gere uma grade visual alinhada com os horarios reais.
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.55)] backdrop-blur">
+
+          <div className="glass-panel-strong rounded-3xl p-6 fade-up">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                 Status do backend
               </p>
               <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -262,48 +314,48 @@ export default async function Home({
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-slate-900 px-4 py-5 text-white">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-300">
+                  <div className="rounded-2xl bg-[color:var(--forest)] px-4 py-5 text-white">
+                    <p className="text-xs uppercase tracking-[0.3em] text-emerald-100">
                       Professores
                     </p>
                     <p className="mt-2 text-3xl font-semibold">
                       {summary?.professors ?? 0}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-4 py-5 text-slate-900 shadow-sm">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                  <div className="rounded-2xl bg-white px-4 py-5">
+                    <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                       Turmas
                     </p>
                     <p className="mt-2 text-3xl font-semibold">
                       {summary?.classGroups ?? 0}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-4 py-5 text-slate-900 shadow-sm">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                  <div className="rounded-2xl bg-white px-4 py-5">
+                    <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                       Materias
                     </p>
                     <p className="mt-2 text-3xl font-semibold">
                       {summary?.subjects ?? 0}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-4 py-5 text-slate-900 shadow-sm">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                      Aulas
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold">
-                      {summary?.lessons ?? 0}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl bg-white px-4 py-5 text-slate-900 shadow-sm">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                  <div className="rounded-2xl bg-white px-4 py-5">
+                    <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                       Demandas
                     </p>
                     <p className="mt-2 text-3xl font-semibold">
                       {summary?.demands ?? 0}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-4 py-5 text-slate-900 shadow-sm">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                  <div className="rounded-2xl bg-white px-4 py-5">
+                    <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Horarios
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold">
+                      {summary?.timeslots ?? 0}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-white px-4 py-5">
+                    <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                       Grade gerada
                     </p>
                     <p className="mt-2 text-3xl font-semibold">
@@ -314,573 +366,579 @@ export default async function Home({
               )}
             </div>
           </div>
-        </header>
-
-        <section className="grid gap-6 rounded-3xl border border-white/70 bg-white/60 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.5)] backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Resumo dos dados</h2>
-              <p className="text-sm text-slate-600">
-                Timeslots registrados e contagem geral para iniciar a otimizacao.
-              </p>
-            </div>
-            <div className="rounded-full bg-slate-900/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-              Fonte: API
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Timeslots</p>
-              <p className="mt-3 text-3xl font-semibold text-slate-900">
-                {summary?.timeslots ?? 0}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Total de registros</p>
-              <p className="mt-3 text-3xl font-semibold text-slate-900">
-                {(summary?.timeslots ?? 0) +
-                  (summary?.professors ?? 0) +
-                  (summary?.classGroups ?? 0) +
-                  (summary?.subjects ?? 0) +
-                  (summary?.lessons ?? 0) +
-                  (summary?.demands ?? 0) +
-                  (summary?.scheduleEntries ?? 0)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Base de dados</p>
-              <p className="mt-3 text-3xl font-semibold text-slate-900">PostgreSQL 15</p>
-            </div>
-          </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-slate-900">Professores</h3>
-              <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                {professors.length} registros
-              </span>
+        <section id="cadastro" className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+          <div className="glass-panel rounded-3xl p-6">
+            <h2 className="title-display text-3xl font-semibold">Cadastro base</h2>
+            <p className="mt-3 text-sm text-[color:var(--muted)]">
+              Esta etapa alimenta o solver com pessoas, turmas e o formato do dia.
+              Preencha primeiro os professores e turmas para depois conectar materias
+              e demandas.
+            </p>
+            <div className="mt-6 space-y-4 text-sm text-[color:var(--muted)]">
+              <div className="rounded-2xl border border-[color:var(--grid)] bg-white/60 p-4">
+                <p className="text-xs uppercase tracking-[0.3em]">Passo 1</p>
+                <p className="mt-2">Cadastre professores e uma nota simples de indisponibilidade.</p>
+              </div>
+              <div className="rounded-2xl border border-[color:var(--grid)] bg-white/60 p-4">
+                <p className="text-xs uppercase tracking-[0.3em]">Passo 2</p>
+                <p className="mt-2">Crie turmas e marque se sao REGULAR ou INTEGRAL.</p>
+              </div>
+              <div className="rounded-2xl border border-[color:var(--grid)] bg-white/60 p-4">
+                <p className="text-xs uppercase tracking-[0.3em]">Passo 3</p>
+                <p className="mt-2">Defina os horarios reais (inicio e fim de cada aula).</p>
+              </div>
             </div>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Nome</th>
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Max horas</th>
-                    <th className="px-4 py-3">Indisponivel</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {professors.map((professor) => (
-                    <tr key={professor.id} className="text-slate-700">
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {professor.name}
-                      </td>
-                      <td className="px-4 py-3">{professor.email}</td>
-                      <td className="px-4 py-3">{professor.maxWeeklyHours}</td>
-                      <td className="px-4 py-3">{professor.unavailability || "-"}</td>
-                    </tr>
-                  ))}
-                  {professors.length === 0 && !errorMessage && (
+          </div>
+
+          <div className="grid gap-6">
+            <div className="glass-panel-strong rounded-3xl p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Professores</h3>
+                <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                  {professors.length} registros
+                </span>
+              </div>
+              <div className="mt-4 overflow-hidden rounded-2xl border border-[color:var(--grid)] bg-white">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[color:var(--bg-strong)] text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                     <tr>
-                      <td className="px-4 py-6 text-sm text-slate-500" colSpan={4}>
-                        Nenhum professor cadastrado.
-                      </td>
+                      <th className="px-4 py-3">Nome</th>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Max</th>
+                      <th className="px-4 py-3">Indisponivel</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <h3 className="text-xl font-semibold text-slate-900">Adicionar professor</h3>
-            <form action={createProfessor} className="mt-4 space-y-4">
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Nome
-                </label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="name"
-                  required
-                />
+                  </thead>
+                  <tbody className="divide-y divide-[color:var(--grid)]">
+                    {professors.map((professor) => (
+                      <tr key={professor.id} className="text-[color:var(--muted)]">
+                        <td className="px-4 py-3 font-semibold text-[color:var(--ink)]">
+                          {professor.name}
+                        </td>
+                        <td className="px-4 py-3">{professor.email}</td>
+                        <td className="px-4 py-3">{professor.maxWeeklyHours}</td>
+                        <td className="px-4 py-3">
+                          {professor.unavailability || "-"}
+                        </td>
+                      </tr>
+                    ))}
+                    {professors.length === 0 && !errorMessage && (
+                      <tr>
+                        <td className="px-4 py-6 text-sm text-[color:var(--muted)]" colSpan={4}>
+                          Nenhum professor cadastrado.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Email
-                </label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="email"
-                  type="email"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Max horas semanais
-                </label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="maxWeeklyHours"
-                  type="number"
-                  min={1}
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Indisponibilidade
-                </label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="unavailability"
-                  placeholder="Ex: Ter-Manha"
-                />
-              </div>
-              <button className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white">
-                Salvar professor
-              </button>
-            </form>
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-slate-900">Turmas</h3>
-              <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                {classGroups.length} registros
-              </span>
-            </div>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Nome</th>
-                    <th className="px-4 py-3">Turno</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {classGroups.map((classGroup) => (
-                    <tr key={classGroup.id} className="text-slate-700">
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {classGroup.name}
-                      </td>
-                      <td className="px-4 py-3">{classGroup.shiftType}</td>
-                    </tr>
-                  ))}
-                  {classGroups.length === 0 && !errorMessage && (
-                    <tr>
-                      <td className="px-4 py-6 text-sm text-slate-500" colSpan={2}>
-                        Nenhuma turma cadastrada.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <h3 className="text-xl font-semibold text-slate-900">Adicionar turma</h3>
-            <form action={createClassGroup} className="mt-4 space-y-4">
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Nome
-                </label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Turno
-                </label>
-                <select
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="shiftType"
-                  defaultValue="REGULAR"
-                >
-                  <option value="REGULAR">REGULAR</option>
-                  <option value="INTEGRAL">INTEGRAL</option>
-                </select>
-              </div>
-              <button className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white">
-                Salvar turma
-              </button>
-            </form>
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-slate-900">Horarios</h3>
-              <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                {timeslots.length} registros
-              </span>
-            </div>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Dia</th>
-                    <th className="px-4 py-3">Inicio</th>
-                    <th className="px-4 py-3">Fim</th>
-                    <th className="px-4 py-3">Turno</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {timeslots.map((slot) => (
-                    <tr key={slot.id} className="text-slate-700">
-                      <td className="px-4 py-3">{slot.dayOfWeek}</td>
-                      <td className="px-4 py-3">{slot.startTime}</td>
-                      <td className="px-4 py-3">{slot.endTime}</td>
-                      <td className="px-4 py-3">{slot.shiftType}</td>
-                    </tr>
-                  ))}
-                  {timeslots.length === 0 && !errorMessage && (
-                    <tr>
-                      <td className="px-4 py-6 text-sm text-slate-500" colSpan={4}>
-                        Nenhum horario cadastrado.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <h3 className="text-xl font-semibold text-slate-900">Adicionar horario</h3>
-            <form action={createTimeslot} className="mt-4 space-y-4">
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Dia da semana
-                </label>
-                <select
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="dayOfWeek"
-                  required
-                >
-                  <option value="">Selecione</option>
-                  <option value="1">Segunda</option>
-                  <option value="2">Terca</option>
-                  <option value="3">Quarta</option>
-                  <option value="4">Quinta</option>
-                  <option value="5">Sexta</option>
-                </select>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <form action={createProfessor} className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                    Inicio
+                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    Nome
                   </label>
                   <input
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                    name="startTime"
-                    type="time"
+                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                    name="name"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                    Fim
+                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    Email
                   </label>
                   <input
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                    name="endTime"
-                    type="time"
+                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                    name="email"
+                    type="email"
                     required
                   />
                 </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    Max horas
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                    name="maxWeeklyHours"
+                    type="number"
+                    min={1}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    Indisponibilidade
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                    name="unavailability"
+                    placeholder="Ex: Ter-Manha"
+                  />
+                </div>
+                <button className="sm:col-span-2 rounded-2xl bg-[color:var(--forest)] px-4 py-3 text-sm font-semibold text-white">
+                  Salvar professor
+                </button>
+              </form>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="glass-panel rounded-3xl p-6">
+                <h3 className="text-xl font-semibold">Turmas</h3>
+                <div className="mt-4 overflow-hidden rounded-2xl border border-[color:var(--grid)] bg-white">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-[color:var(--bg-strong)] text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      <tr>
+                        <th className="px-4 py-3">Nome</th>
+                        <th className="px-4 py-3">Turno</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[color:var(--grid)]">
+                      {classGroups.map((classGroup) => (
+                        <tr key={classGroup.id} className="text-[color:var(--muted)]">
+                          <td className="px-4 py-3 font-semibold text-[color:var(--ink)]">
+                            {classGroup.name}
+                          </td>
+                          <td className="px-4 py-3">{classGroup.shiftType}</td>
+                        </tr>
+                      ))}
+                      {classGroups.length === 0 && !errorMessage && (
+                        <tr>
+                          <td className="px-4 py-6 text-sm text-[color:var(--muted)]" colSpan={2}>
+                            Nenhuma turma cadastrada.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Turno
-                </label>
-                <select
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="shiftType"
-                  defaultValue="REGULAR"
-                >
-                  <option value="REGULAR">REGULAR</option>
-                  <option value="INTEGRAL">INTEGRAL</option>
-                </select>
+              <div className="glass-panel-strong rounded-3xl p-6">
+                <h3 className="text-xl font-semibold">Adicionar turma</h3>
+                <form action={createClassGroup} className="mt-4 space-y-4">
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Nome
+                    </label>
+                    <input
+                      className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                      name="name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Turno
+                    </label>
+                    <select
+                      className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                      name="shiftType"
+                      defaultValue="REGULAR"
+                    >
+                      <option value="REGULAR">REGULAR</option>
+                      <option value="INTEGRAL">INTEGRAL</option>
+                    </select>
+                  </div>
+                  <button className="w-full rounded-2xl bg-[color:var(--forest)] px-4 py-3 text-sm font-semibold text-white">
+                    Salvar turma
+                  </button>
+                </form>
               </div>
-              <button className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white">
-                Salvar horario
-              </button>
-            </form>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="glass-panel rounded-3xl p-6">
+                <h3 className="text-xl font-semibold">Horarios</h3>
+                <div className="mt-4 overflow-hidden rounded-2xl border border-[color:var(--grid)] bg-white">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-[color:var(--bg-strong)] text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      <tr>
+                        <th className="px-4 py-3">Dia</th>
+                        <th className="px-4 py-3">Inicio</th>
+                        <th className="px-4 py-3">Fim</th>
+                        <th className="px-4 py-3">Turno</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[color:var(--grid)]">
+                      {timeslots.map((slot) => (
+                        <tr key={slot.id} className="text-[color:var(--muted)]">
+                          <td className="px-4 py-3">{slot.dayOfWeek}</td>
+                          <td className="px-4 py-3">{slot.startTime}</td>
+                          <td className="px-4 py-3">{slot.endTime}</td>
+                          <td className="px-4 py-3">{slot.shiftType}</td>
+                        </tr>
+                      ))}
+                      {timeslots.length === 0 && !errorMessage && (
+                        <tr>
+                          <td className="px-4 py-6 text-sm text-[color:var(--muted)]" colSpan={4}>
+                            Nenhum horario cadastrado.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="glass-panel-strong rounded-3xl p-6">
+                <h3 className="text-xl font-semibold">Adicionar horario</h3>
+                <form action={createTimeslot} className="mt-4 space-y-4">
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Dia da semana
+                    </label>
+                    <select
+                      className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                      name="dayOfWeek"
+                      required
+                    >
+                      <option value="">Selecione</option>
+                      <option value="1">Segunda</option>
+                      <option value="2">Terca</option>
+                      <option value="3">Quarta</option>
+                      <option value="4">Quinta</option>
+                      <option value="5">Sexta</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                        Inicio
+                      </label>
+                      <input
+                        className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                        name="startTime"
+                        type="time"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                        Fim
+                      </label>
+                      <input
+                        className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                        name="endTime"
+                        type="time"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                      Turno
+                    </label>
+                    <select
+                      className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                      name="shiftType"
+                      defaultValue="REGULAR"
+                    >
+                      <option value="REGULAR">REGULAR</option>
+                      <option value="INTEGRAL">INTEGRAL</option>
+                    </select>
+                  </div>
+                  <button className="w-full rounded-2xl bg-[color:var(--forest)] px-4 py-3 text-sm font-semibold text-white">
+                    Salvar horario
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-slate-900">Materias</h3>
-              <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                {subjects.length} registros
-              </span>
-            </div>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Materia</th>
-                    <th className="px-4 py-3">Turma</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {subjects.map((subject) => (
-                    <tr key={subject.id} className="text-slate-700">
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {subject.name}
-                      </td>
-                      <td className="px-4 py-3">{subject.classGroup?.name}</td>
-                    </tr>
-                  ))}
-                  {subjects.length === 0 && !errorMessage && (
-                    <tr>
-                      <td className="px-4 py-6 text-sm text-slate-500" colSpan={2}>
-                        Nenhuma materia cadastrada.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+        <section id="curriculo" className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+          <div className="glass-panel rounded-3xl p-6">
+            <h2 className="title-display text-3xl font-semibold">Curriculo e demanda</h2>
+            <p className="mt-3 text-sm text-[color:var(--muted)]">
+              Conecte materias a turmas e defina quantas aulas por semana. Se uma
+              materia tem dois professores, marque ambos para co-teaching.
+            </p>
+            <div className="mt-6 space-y-4">
+              <div className="rounded-2xl border border-[color:var(--grid)] bg-white/60 p-4">
+                <p className="text-xs uppercase tracking-[0.3em]">Materias</p>
+                <p className="mt-2 text-sm text-[color:var(--muted)]">
+                  Vincule cada materia a uma turma.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[color:var(--grid)] bg-white/60 p-4">
+                <p className="text-xs uppercase tracking-[0.3em]">Demandas</p>
+                <p className="mt-2 text-sm text-[color:var(--muted)]">
+                  Informe a quantidade de aulas e quem ministra.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[color:var(--grid)] bg-white/60 p-4">
+                <p className="text-xs uppercase tracking-[0.3em]">Dica</p>
+                <p className="mt-2 text-sm text-[color:var(--muted)]">
+                  Crie todas as demandas antes de gerar a grade.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <h3 className="text-xl font-semibold text-slate-900">Adicionar materia</h3>
-            <form action={createSubject} className="mt-4 space-y-4">
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Nome
-                </label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="name"
-                  required
-                />
+          <div className="grid gap-6">
+            <div className="glass-panel-strong rounded-3xl p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Materias</h3>
+                <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                  {subjects.length} registros
+                </span>
               </div>
+              <div className="mt-4 overflow-hidden rounded-2xl border border-[color:var(--grid)] bg-white">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[color:var(--bg-strong)] text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    <tr>
+                      <th className="px-4 py-3">Materia</th>
+                      <th className="px-4 py-3">Turma</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[color:var(--grid)]">
+                    {subjects.map((subject) => (
+                      <tr key={subject.id} className="text-[color:var(--muted)]">
+                        <td className="px-4 py-3 font-semibold text-[color:var(--ink)]">
+                          {subject.name}
+                        </td>
+                        <td className="px-4 py-3">{subject.classGroup?.name}</td>
+                      </tr>
+                    ))}
+                    {subjects.length === 0 && !errorMessage && (
+                      <tr>
+                        <td className="px-4 py-6 text-sm text-[color:var(--muted)]" colSpan={2}>
+                          Nenhuma materia cadastrada.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <form action={createSubject} className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    Nome
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                    name="name"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    Turma
+                  </label>
+                  <select
+                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                    name="classGroupId"
+                    required
+                  >
+                    <option value="">Selecione</option>
+                    {classGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button className="sm:col-span-2 rounded-2xl bg-[color:var(--forest)] px-4 py-3 text-sm font-semibold text-white">
+                  Salvar materia
+                </button>
+              </form>
+            </div>
+
+            <div className="glass-panel-strong rounded-3xl p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Demandas</h3>
+                <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                  {demands.length} registros
+                </span>
+              </div>
+              <div className="mt-4 overflow-hidden rounded-2xl border border-[color:var(--grid)] bg-white">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[color:var(--bg-strong)] text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    <tr>
+                      <th className="px-4 py-3">Materia</th>
+                      <th className="px-4 py-3">Turma</th>
+                      <th className="px-4 py-3">Qtd</th>
+                      <th className="px-4 py-3">Professores</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[color:var(--grid)]">
+                    {demands.map((demand) => (
+                      <tr key={demand.id} className="text-[color:var(--muted)]">
+                        <td className="px-4 py-3 font-semibold text-[color:var(--ink)]">
+                          {demand.subject?.name}
+                        </td>
+                        <td className="px-4 py-3">{demand.subject?.classGroup?.name}</td>
+                        <td className="px-4 py-3">{demand.quantityPerWeek}</td>
+                        <td className="px-4 py-3">
+                          {demand.professors.map((professor) => professor.name).join(", ")}
+                        </td>
+                      </tr>
+                    ))}
+                    {demands.length === 0 && !errorMessage && (
+                      <tr>
+                        <td className="px-4 py-6 text-sm text-[color:var(--muted)]" colSpan={4}>
+                          Nenhuma demanda cadastrada.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <form action={createDemand} className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    Materia
+                  </label>
+                  <select
+                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                    name="subjectId"
+                    required
+                  >
+                    <option value="">Selecione</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name} - {subject.classGroup?.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    Quantidade
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm"
+                    name="quantityPerWeek"
+                    type="number"
+                    min={1}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                    Co-teaching
+                  </label>
+                  <div className="mt-2 grid gap-2 rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-3 text-sm">
+                    {professors.map((professor) => (
+                      <label key={professor.id} className="flex items-center gap-2">
+                        <input type="checkbox" name="professorIds" value={professor.id} />
+                        <span>{professor.name}</span>
+                      </label>
+                    ))}
+                    {professors.length === 0 && (
+                      <span className="text-xs text-[color:var(--muted)]">
+                        Cadastre professores primeiro.
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-[color:var(--muted)]">
+                  <input type="checkbox" name="allowDoubleLesson" />
+                  Permite geminhada
+                </label>
+                <button className="sm:col-span-2 rounded-2xl bg-[color:var(--forest)] px-4 py-3 text-sm font-semibold text-white">
+                  Salvar demanda
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section id="grade" className="grid gap-6">
+          <div className="glass-panel rounded-3xl p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                <h2 className="title-display text-3xl font-semibold">Grade final</h2>
+                <p className="mt-2 text-sm text-[color:var(--muted)]">
+                  O solver usa os horarios cadastrados e preenche a grade por turma.
+                </p>
+              </div>
+              <form action={startSolver}>
+                <button className="rounded-full bg-[color:var(--accent)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-900/10 transition hover:bg-[color:var(--accent-dark)]">
+                  Gerar horario
+                </button>
+              </form>
+            </div>
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              <form className="flex items-center gap-3">
+                <label className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                   Turma
                 </label>
                 <select
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                  className="rounded-2xl border border-[color:var(--grid)] bg-white px-4 py-2 text-sm"
                   name="classGroupId"
-                  required
+                  defaultValue={selectedClassGroupId ?? classGroups[0]?.id ?? ""}
                 >
-                  <option value="">Selecione</option>
                   {classGroups.map((group) => (
                     <option key={group.id} value={group.id}>
                       {group.name}
                     </option>
                   ))}
                 </select>
-              </div>
-              <button className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white">
-                Salvar materia
-              </button>
-            </form>
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-slate-900">Demandas</h3>
-              <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                {demands.length} registros
-              </span>
+                <button className="rounded-full border border-[color:var(--grid)] bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--muted)]">
+                  Ver turma
+                </button>
+              </form>
+              {classGroups.length === 0 && (
+                <span className="text-xs text-[color:var(--muted)]">
+                  Cadastre turmas para ver a grade.
+                </span>
+              )}
             </div>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="mt-6 overflow-hidden rounded-2xl border border-[color:var(--grid)] bg-white">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
+                <thead className="bg-[color:var(--bg-strong)] text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">
                   <tr>
-                    <th className="px-4 py-3">Materia</th>
-                    <th className="px-4 py-3">Turma</th>
-                    <th className="px-4 py-3">Qtd</th>
-                    <th className="px-4 py-3">Professores</th>
+                    <th className="px-4 py-3">Horario</th>
+                    {days.map((day) => (
+                      <th key={day} className="px-4 py-3">
+                        {day}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {demands.map((demand) => (
-                    <tr key={demand.id} className="text-slate-700">
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {demand.subject?.name}
+                <tbody className="divide-y divide-[color:var(--grid)]">
+                  {timeRows.map((row) => (
+                    <tr key={`${row.startTime}-${row.endTime}`}>
+                      <td className="px-4 py-3 font-semibold text-[color:var(--ink)]">
+                        {row.startTime} - {row.endTime}
                       </td>
-                      <td className="px-4 py-3">{demand.subject?.classGroup?.name}</td>
-                      <td className="px-4 py-3">{demand.quantityPerWeek}</td>
-                      <td className="px-4 py-3">
-                        {demand.professors.map((professor) => professor.name).join(", ")}
-                      </td>
+                      {days.map((_, index) => {
+                        const entry = gradeMap.get(
+                          `${index + 1}-${row.startTime}-${row.endTime}`
+                        );
+                        return (
+                          <td
+                            key={`${row.startTime}-${row.endTime}-${index}`}
+                            className="px-4 py-3 text-[color:var(--muted)]"
+                          >
+                            {entry ? (
+                              <div className="space-y-1">
+                                <p className="font-semibold text-[color:var(--ink)]">
+                                  {entry.subject}
+                                </p>
+                                <p className="text-xs text-[color:var(--muted)]">
+                                  {entry.professors.join(", ")}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-[color:var(--muted)]">-</span>
+                            )}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
-                  {demands.length === 0 && !errorMessage && (
+                  {timeRows.length === 0 && (
                     <tr>
-                      <td className="px-4 py-6 text-sm text-slate-500" colSpan={4}>
-                        Nenhuma demanda cadastrada.
+                      <td className="px-4 py-6 text-sm text-[color:var(--muted)]" colSpan={6}>
+                        Cadastre horarios para visualizar a grade.
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-            <h3 className="text-xl font-semibold text-slate-900">Adicionar demanda</h3>
-            <form action={createDemand} className="mt-4 space-y-4">
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Materia
-                </label>
-                <select
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="subjectId"
-                  required
-                >
-                  <option value="">Selecione</option>
-                  {subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name} - {subject.classGroup?.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Quantidade por semana
-                </label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                  name="quantityPerWeek"
-                  type="number"
-                  min={1}
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Professores
-                </label>
-                <div className="mt-2 grid gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
-                  {professors.map((professor) => (
-                    <label key={professor.id} className="flex items-center gap-2">
-                      <input type="checkbox" name="professorIds" value={professor.id} />
-                      <span>{professor.name}</span>
-                    </label>
-                  ))}
-                  {professors.length === 0 && (
-                    <span className="text-xs text-slate-500">Cadastre professores primeiro.</span>
-                  )}
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" name="allowDoubleLesson" />
-                Permite geminhada
-              </label>
-              <button className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white">
-                Salvar demanda
-              </button>
-            </form>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-[0_18px_60px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-semibold text-slate-900">Grade gerada</h3>
-              <p className="text-sm text-slate-600">
-                Clique em gerar horario e veja a grade por turma.
-              </p>
-            </div>
-            <form action={startSolver}>
-              <button className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white">
-                Gerar horario
-              </button>
-            </form>
-          </div>
-          <div className="mt-6 flex flex-wrap items-center gap-4">
-            <form className="flex items-center gap-3">
-              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Turma
-              </label>
-              <select
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
-                name="classGroupId"
-                defaultValue={selectedClassGroupId ?? classGroups[0]?.id ?? ""}
-              >
-                {classGroups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
-              <button className="rounded-full border border-slate-900/20 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                Ver turma
-              </button>
-            </form>
-            {classGroups.length === 0 && (
-              <span className="text-xs text-slate-500">
-                Cadastre turmas para ver a grade.
-              </span>
-            )}
-          </div>
-          <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Horario</th>
-                  {days.map((day) => (
-                    <th key={day} className="px-4 py-3">
-                      {day}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {timeRows.map((row) => (
-                  <tr key={`${row.startTime}-${row.endTime}`}>
-                    <td className="px-4 py-3 font-semibold text-slate-900">
-                      {row.startTime} - {row.endTime}
-                    </td>
-                    {days.map((_, index) => {
-                      const entry = gradeMap.get(
-                        `${index + 1}-${row.startTime}-${row.endTime}`
-                      );
-                      return (
-                        <td
-                          key={`${row.startTime}-${row.endTime}-${index}`}
-                          className="px-4 py-3 text-slate-700"
-                        >
-                          {entry ? (
-                            <div className="space-y-1">
-                              <p className="font-semibold text-slate-900">{entry.subject}</p>
-                              <p className="text-xs text-slate-500">
-                                {entry.professors.join(", ")}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-400">-</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </section>
       </main>
