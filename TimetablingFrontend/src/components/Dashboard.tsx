@@ -300,31 +300,48 @@ export default function Dashboard({ data }: DashboardProps) {
   );
   const shiftType = selectedClassGroup?.shiftType ?? "REGULAR";
 
+  // Função auxiliar para normalizar horário (remove segundos se existirem)
+  // Ex: "08:00:00" -> "08:00"
+  const normalizeTime = (time: string) => {
+    if (!time) return "";
+    return time.split(":").slice(0, 2).join(":");
+  };
+
   // Filtrar timeslots por turno selecionado
   const timeslotsForShift = data.timeslots
     .filter((slot) => slot.shiftType === shiftType)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-  // Construir timeRows únicos
+  // Construir timeRows únicos (Normalizando as chaves)
   const timeRows = Array.from(
     new Map(
-      timeslotsForShift.map((slot) => [
-        `${slot.startTime}-${slot.endTime}`,
-        {
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-        },
-      ])
+      timeslotsForShift.map((slot) => {
+        const key = `${normalizeTime(slot.startTime)}-${normalizeTime(slot.endTime)}`;
+        return [
+          key,
+          {
+            startTime: normalizeTime(slot.startTime),
+            endTime: normalizeTime(slot.endTime),
+            originalStart: slot.startTime, // Mantém original para debug se precisar
+            originalEnd: slot.endTime,
+          },
+        ];
+      })
     ).values()
   );
 
-  // Construir grade map
-  const gradeMap = new Map(
-    data.initialGrade.map((entry) => [
-      `${entry.dayOfWeek}-${entry.startTime}-${entry.endTime}`,
-      entry,
-    ])
-  );
+  // Construir grade map (Normalizando as chaves)
+  const gradeMap = new Map();
+
+  data.initialGrade.forEach((entry) => {
+    // A chave deve bater EXATAMENTE com a chave gerada no loop da tabela
+    const key = `${entry.dayOfWeek}-${normalizeTime(entry.startTime)}-${normalizeTime(entry.endTime)}`;
+    gradeMap.set(key, entry);
+  });
+
+  // Debug no console do navegador para você ver se está batendo
+  console.log("Grade Map Keys:", Array.from(gradeMap.keys()));
+  console.log("Time Rows:", timeRows);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex">
