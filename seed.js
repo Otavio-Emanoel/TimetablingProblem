@@ -1,9 +1,19 @@
 /**
- * SEED.JS - EtecFlow (Versão Robusta)
- * Corrige o erro de "professorIds empty" e garante a integridade dos dados.
+ * SEED.JS - EtecFlow (Versão Final Corrigida)
+ * Ajustado para Enums do Java (MONDAY, etc) e Horários (HH:mm:ss)
  */
 
 const API_BASE = "http://localhost:8080";
+
+// --- HELPERS ---
+const DIAS_SEMANA_MAP = {
+  1: "MONDAY", 2: "TUESDAY", 3: "WEDNESDAY", 4: "THURSDAY", 5: "FRIDAY"
+};
+
+function formatTime(time) {
+  // Garante HH:mm:ss (ex: "08:00" -> "08:00:00")
+  return time.length === 5 ? `${time}:00` : time;
+}
 
 // --- DADOS ---
 const PROFESSORES = [
@@ -34,7 +44,7 @@ const HORARIOS_TARDE = [
 const mapProf = new Map();
 const mapTurma = new Map();
 
-// --- FUNÇÕES ---
+// --- FUNÇÕES DE API ---
 async function post(endpoint, data) {
   try {
     const res = await fetch(`${API_BASE}/api/${endpoint}`, {
@@ -42,31 +52,35 @@ async function post(endpoint, data) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    
     if (!res.ok) {
       const text = await res.text();
-      // Se já existe, tentamos buscar (para casos de re-run)
-      console.warn(`⚠️ Erro ao criar ${endpoint} (pode já existir): ${text.substring(0, 50)}...`);
-      return null; 
+      // Ignora erro 409 (Conflict) se já existir, mas avisa se for outro
+      if (res.status !== 409) {
+        console.warn(`\n⚠️  Aviso em ${endpoint}: ${res.status} - ${text.substring(0, 80)}...`);
+      }
+      return null;
     }
     return await res.json();
   } catch (e) {
-    console.error(`❌ Erro FATAL em ${endpoint}: ${e.message}`);
+    console.error(`\n❌ Erro de Conexão em ${endpoint}: ${e.message}`);
     return null;
   }
 }
 
-// Busca professor por nome se falhar ao criar
 async function fetchProfessorId(nome) {
   try {
     const res = await fetch(`${API_BASE}/api/professors`);
+    if(!res.ok) return null;
     const list = await res.json();
-    const found = list.find(p => p.name === nome);
+    const found = list.find(p => p.name.toUpperCase() === nome.toUpperCase());
     return found ? found.id : null;
   } catch (e) { return null; }
 }
 
+// --- EXECUÇÃO ---
 async function main() {
-  console.log("🚀 INICIANDO SEED ROBUSTO...");
+  console.log("🚀 INICIANDO SEED (CORRIGIDO)...");
 
   // 1. PROFESSORES
   console.log("\n--- 1. Professores ---");
@@ -74,13 +88,13 @@ async function main() {
     let id = null;
     const res = await post("professors", { name: nome });
     if (res) id = res.id;
-    else id = await fetchProfessorId(nome); // Fallback: busca se já existe
+    else id = await fetchProfessorId(nome);
 
     if (id) {
       mapProf.set(nome, id);
       process.stdout.write("✅");
     } else {
-      console.error(`\n❌ FALHA CRÍTICA: Não consegui ID para ${nome}`);
+      console.error(`\n❌ FALHA: Não consegui criar/achar ${nome}`);
     }
   }
 
@@ -88,32 +102,46 @@ async function main() {
   console.log("\n\n--- 2. Turmas ---");
   for (const t of TURMAS) {
     const res = await post("class-groups", t);
-    if (res) {
-      mapTurma.set(t.name, res.id);
-      process.stdout.write("✅");
-    }
+    if (res) mapTurma.set(t.name, res.id);
+    process.stdout.write("✅");
   }
 
-  // 3. HORÁRIOS
+  // 3. HORÁRIOS (Ajustado para enviar "MONDAY" e "08:00:00")
   console.log("\n\n--- 3. Horários ---");
   const dias = [1, 2, 3, 4, 5];
-  for (const dia of dias) {
+  
+  for (const diaNum of dias) {
+    const diaString = DIAS_SEMANA_MAP[diaNum]; // Converte 1 -> "MONDAY"
+
+    // Função para criar o payload correto
+    const createSlot = async (h, tipo) => {
+      await post("timeslots", { 
+        dayOfWeek: diaString, 
+        startTime: formatTime(h.start), 
+        endTime: formatTime(h.end), 
+        shiftType: tipo 
+      });
+    };
+
+    // Criar slots comuns (Regular e Integral)
     for (const h of HORARIOS_COMUNS) {
-      await post("timeslots", { dayOfWeek: dia, ...h, shiftType: "REGULAR" });
-      await post("timeslots", { dayOfWeek: dia, ...h, shiftType: "INTEGRAL" });
+      await createSlot(h, "REGULAR");
+      await createSlot(h, "INTEGRAL");
     }
-    // Slot Crítico
-    await post("timeslots", { dayOfWeek: dia, ...SLOT_ALMOCO, shiftType: "REGULAR" });
-    // Tarde
+    
+    // Criar slot critico (12:30) - SÓ REGULAR
+    await createSlot(SLOT_ALMOCO, "REGULAR");
+
+    // Criar slots tarde - SÓ INTEGRAL
     for (const h of HORARIOS_TARDE) {
-      await post("timeslots", { dayOfWeek: dia, ...h, shiftType: "INTEGRAL" });
+      await createSlot(h, "INTEGRAL");
     }
-    process.stdout.write(` [Dia ${dia}]`);
+    
+    process.stdout.write(` [${diaString.substring(0,3)}]`);
   }
 
-  // 4. DEMANDAS (Aulas)
-  console.log("\n\n--- 4. Demandas (Onde estava o erro) ---");
-  
+  // 4. DEMANDAS
+  console.log("\n\n--- 4. Demandas ---");
   const demandas = [
     // 1MDS
     { t: "1MDS", m: "EAMT", p: ["ELZA", "ELIAMAR"], q: 4 },
@@ -137,32 +165,28 @@ async function main() {
 
   for (const d of demandas) {
     const turmaId = mapTurma.get(d.t);
-    if (!turmaId) { console.error(`\nTurma não achada: ${d.t}`); continue; }
+    if (!turmaId) continue;
 
-    // Cria matéria
+    // Matéria
     const subj = await post("subjects", { name: d.m, classGroupId: turmaId });
     if (!subj) continue;
 
-    // Resolve Professores
+    // Professores
     const nomesProfs = Array.isArray(d.p) ? d.p : [d.p];
     const idsProfs = nomesProfs.map(n => mapProf.get(n)).filter(id => id);
 
-    if (idsProfs.length === 0) {
-      console.error(`\n❌ ERRO: Nenhum professor encontrado para ${d.m} em ${d.t} (Nomes: ${nomesProfs})`);
-      continue; // Pula para não travar o backend
+    if (idsProfs.length > 0) {
+      await post("demands", {
+        subjectId: subj.id,
+        professorIds: idsProfs,
+        quantityPerWeek: d.q,
+        allowDoubleLesson: true
+      });
+      process.stdout.write("+");
     }
-
-    // Cria Demanda
-    await post("demands", {
-      subjectId: subj.id,
-      professorIds: idsProfs,
-      quantityPerWeek: d.q,
-      allowDoubleLesson: true
-    });
-    process.stdout.write("+");
   }
 
-  console.log("\n\n✅ SEED FINALIZADO! Pode rodar o solver.");
+  console.log("\n\n✅ SEED FINALIZADO! Teste agora.");
 }
 
 main();
