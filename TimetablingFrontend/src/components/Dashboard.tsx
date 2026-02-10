@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -150,12 +150,38 @@ export default function Dashboard({ data }: DashboardProps) {
   const [solverStatus, setSolverStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [solverMessage, setSolverMessage] = useState("");
 
+  // Estado dinâmico da grade (carregada do servidor)
+  const [gradeEntries, setGradeEntries] = useState<GradeEntry[]>(data.initialGrade);
+  const [gradeLoading, setGradeLoading] = useState(false);
+
   // Refs para os formulários
   const professorFormRef = useRef<HTMLFormElement>(null);
   const classFormRef = useRef<HTMLFormElement>(null);
   const subjectFormRef = useRef<HTMLFormElement>(null);
   const demandFormRef = useRef<HTMLFormElement>(null);
   const timeslotFormRef = useRef<HTMLFormElement>(null);
+
+  // Função para buscar a grade de uma turma
+  const loadGrade = useCallback(async (classGroupId: number | null) => {
+    if (!classGroupId) {
+      setGradeEntries([]);
+      return;
+    }
+    setGradeLoading(true);
+    try {
+      const entries = await Actions.fetchGradeForClass(classGroupId);
+      setGradeEntries(entries);
+    } catch {
+      setGradeEntries([]);
+    } finally {
+      setGradeLoading(false);
+    }
+  }, []);
+
+  // Recarregar grade quando a turma selecionada muda
+  useEffect(() => {
+    loadGrade(selectedClassGroupId);
+  }, [selectedClassGroupId, loadGrade]);
 
   const openModal = (type: string) => {
     setModalType(type);
@@ -214,14 +240,12 @@ export default function Dashboard({ data }: DashboardProps) {
   const handleRunSolver = async () => {
     setSolverModalOpen(true);
     setSolverStatus("running");
-    setSolverProgress(10); // Começa um pouco
+    setSolverProgress(10);
     setSolverMessage("Iniciando motor de otimização...");
 
     try {
-      // 1. Dá o comando de partida
       await Actions.startSolver();
       
-      // 2. Inicia o Polling (Verificação periódica)
       const intervalId = setInterval(async () => {
         try {
           const statusData = await Actions.getSolverStatus();
@@ -230,25 +254,29 @@ export default function Dashboard({ data }: DashboardProps) {
             clearInterval(intervalId);
             setSolverStatus("success");
             setSolverProgress(100);
-            setSolverMessage(`Sucesso! ${statusData.scheduled ?? 0} aulas agendadas.`);
+            const msg = statusData.details
+              ? statusData.details.split("\n")[0]
+              : `Sucesso! ${statusData.scheduled ?? 0} aulas agendadas.`;
+            setSolverMessage(msg);
             
-            // Atualiza a tela após 1.5s
+            // Recarregar a grade da turma selecionada
+            await loadGrade(selectedClassGroupId);
+            
             setTimeout(() => {
               setSolverModalOpen(false);
-              router.refresh(); // Puxa a grade nova do banco
+              router.refresh();
             }, 1500);
           } else if (statusData.status === "ERROR") {
             clearInterval(intervalId);
             setSolverStatus("error");
-            setSolverMessage("Ocorreu um erro interno no algoritmo.");
+            setSolverMessage(statusData.details ?? "Ocorreu um erro interno no algoritmo.");
           } else {
-            // Ainda rodando... incrementa a barra fake para dar feedback visual
             setSolverProgress((prev) => Math.min(prev + 5, 90));
           }
         } catch (err) {
-          console.error("Erro ao verificar status:", err);
+          // continua tentando
         }
-      }, 1000); // Checa a cada 1 segundo
+      }, 1000);
 
     } catch (error: any) {
       setSolverStatus("error");
@@ -330,18 +358,13 @@ export default function Dashboard({ data }: DashboardProps) {
     ).values()
   );
 
-  // Construir grade map (Normalizando as chaves)
-  const gradeMap = new Map();
+  // Construir grade map com dados dinâmicos (Normalizando as chaves)
+  const gradeMap = new Map<string, GradeEntry>();
 
-  data.initialGrade.forEach((entry) => {
-    // A chave deve bater EXATAMENTE com a chave gerada no loop da tabela
+  gradeEntries.forEach((entry) => {
     const key = `${entry.dayOfWeek}-${normalizeTime(entry.startTime)}-${normalizeTime(entry.endTime)}`;
     gradeMap.set(key, entry);
   });
-
-  // Debug no console do navegador para você ver se está batendo
-  console.log("Grade Map Keys:", Array.from(gradeMap.keys()));
-  console.log("Time Rows:", timeRows);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex">
@@ -731,26 +754,24 @@ export default function Dashboard({ data }: DashboardProps) {
               <div className="flex items-center gap-3">
                 <button
                   onClick={exportGradePDF}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  disabled={gradeLoading || gradeEntries.length === 0}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   <Download size={16} /> Exportar PDF
                 </button>
-                <form className="flex items-center gap-2">
-                  <select
-                    name="classGroupId"
-                    defaultValue={selectedClassGroupId ?? ""}
-                    onChange={(e) =>
-                      setSelectedClassGroupId(Number(e.target.value))
-                    }
-                    className="bg-slate-50 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {data.classGroups.map((cg) => (
-                      <option key={cg.id} value={cg.id}>
-                        {cg.name}
-                      </option>
-                    ))}
-                  </select>
-                </form>
+                <select
+                  value={selectedClassGroupId ?? ""}
+                  onChange={(e) =>
+                    setSelectedClassGroupId(Number(e.target.value))
+                  }
+                  className="bg-slate-50 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {data.classGroups.map((cg) => (
+                    <option key={cg.id} value={cg.id}>
+                      {cg.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -758,9 +779,18 @@ export default function Dashboard({ data }: DashboardProps) {
               <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
                 Cadastre turmas primeiro para visualizar a grade.
               </div>
+            ) : gradeLoading ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 flex items-center justify-center gap-2">
+                <Loader className="animate-spin" size={20} />
+                Carregando grade...
+              </div>
             ) : timeRows.length === 0 ? (
               <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
                 Cadastre horários para visualizar a grade.
+              </div>
+            ) : gradeEntries.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
+                Nenhuma aula alocada para esta turma. Rode o solver primeiro.
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">

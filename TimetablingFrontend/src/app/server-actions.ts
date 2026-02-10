@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 const apiBase =
   process.env.API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
-  "http://backend:8080";
+  "http://localhost:8080";
 
 export async function createProfessor(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -208,7 +208,19 @@ export async function getSolverStatus() {
   });
 
   if (!response.ok) {
-    return { status: "ERROR" };
+    return { status: "ERROR", details: null, scheduled: null, unscheduled: null };
+  }
+
+  return response.json();
+}
+
+export async function fetchGradeForClass(classGroupId: number) {
+  const response = await fetch(`${apiBase}/api/grade/${classGroupId}`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return [];
   }
 
   return response.json();

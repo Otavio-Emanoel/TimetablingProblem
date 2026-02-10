@@ -4,8 +4,10 @@ import Dashboard from "@/components/Dashboard";
 export default async function Home({
   searchParams,
 }: {
-  searchParams?: { classGroupId?: string };
+  searchParams?: Promise<{ classGroupId?: string }>;
 }) {
+  const params = await searchParams;
+
   // Fetching em paralelo para melhor performance
   const [summary, professors, classGroups, subjects, demands, timeslots, unavailability] =
     await Promise.all([
@@ -25,8 +27,8 @@ export default async function Home({
     ]);
 
   // Lógica específica para a grade da turma selecionada
-  const selectedClassId = searchParams?.classGroupId
-    ? Number(searchParams.classGroupId)
+  const selectedClassId = params?.classGroupId
+    ? Number(params.classGroupId)
     : classGroups[0]?.id ?? null;
 
   const initialGrade = selectedClassId
