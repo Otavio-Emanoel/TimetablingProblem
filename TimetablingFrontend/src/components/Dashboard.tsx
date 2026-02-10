@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Users,
   Calendar,
@@ -132,6 +133,7 @@ const dayLabels: Record<number, string> = {
 };
 
 export default function Dashboard({ data }: DashboardProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isModalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<string | null>(null);
@@ -188,9 +190,14 @@ export default function Dashboard({ data }: DashboardProps) {
     e.preventDefault();
     const form = e.currentTarget;
     startTransition(() => {
-      void action(new FormData(form)).then(() => {
-        closeModal();
-      });
+      void action(new FormData(form))
+        .then(() => {
+          closeModal();
+          router.refresh();
+        })
+        .catch((error) => {
+          console.error("Erro ao salvar:", error);
+        });
     });
   };
 
