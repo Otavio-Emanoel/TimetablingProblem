@@ -793,25 +793,26 @@ export default function Dashboard({ data }: DashboardProps) {
                           {row.startTime} - {row.endTime}
                         </td>
                         {[1, 2, 3, 4, 5].map((dayOfWeek) => {
-                          const entry = gradeMap.get(
-                            `${dayOfWeek}-${row.startTime}-${row.endTime}`
-                          );
+                          // Usa a chave normalizada para buscar
+                          const key = `${dayOfWeek}-${row.startTime}-${row.endTime}`;
+                          const entry = gradeMap.get(key);
+
                           return (
                             <td
                               key={`${rowIdx}-${dayOfWeek}`}
                               className="px-6 py-4 text-center border-l border-slate-100"
                             >
                               {entry ? (
-                                <div className="space-y-1">
-                                  <p className="text-sm font-semibold text-slate-800">
+                                <div className="space-y-1 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                                  <p className="text-sm font-bold text-blue-800">
                                     {entry.subject}
                                   </p>
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-blue-600 font-medium">
                                     {entry.professors.join(", ")}
                                   </p>
                                 </div>
                               ) : (
-                                <span className="text-slate-300">-</span>
+                                <span className="text-slate-300 text-xs">-</span>
                               )}
                             </td>
                           );
