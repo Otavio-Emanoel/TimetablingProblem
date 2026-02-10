@@ -12,7 +12,11 @@ import {
   Trash2,
   GraduationCap,
   AlertCircle,
+  Download,
+  Loader,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import * as Actions from "@/app/server-actions";
 import {
   Professor,
@@ -141,6 +145,10 @@ export default function Dashboard({ data }: DashboardProps) {
     data.classGroups[0]?.id ?? null
   );
   const [isPending, startTransition] = useTransition();
+  const [solverModalOpen, setSolverModalOpen] = useState(false);
+  const [solverProgress, setSolverProgress] = useState(0);
+  const [solverStatus, setSolverStatus] = useState<"idle" | "running" | "success" | "error">("idle");
+  const [solverMessage, setSolverMessage] = useState("");
 
   // Refs para os formulários
   const professorFormRef = useRef<HTMLFormElement>(null);
@@ -200,6 +208,70 @@ export default function Dashboard({ data }: DashboardProps) {
           alert(`Erro ao salvar: ${error?.message ?? "Erro desconhecido"}`);
         });
     });
+  };
+
+  // Handler para executar o solver
+  const handleRunSolver = () => {
+    setSolverModalOpen(true);
+    setSolverStatus("running");
+    setSolverProgress(0);
+    setSolverMessage("Iniciando o solver...");
+
+    startTransition(() => {
+      void Actions.startSolver()
+        .then(() => {
+          setSolverStatus("success");
+          setSolverProgress(100);
+          setSolverMessage("Solver executado com sucesso! A grade foi gerada.");
+          // Recarregar a página após 2 segundos
+          setTimeout(() => {
+            setSolverModalOpen(false);
+            router.refresh();
+          }, 2000);
+        })
+        .catch((error) => {
+          setSolverStatus("error");
+          setSolverMessage(`Erro ao executar solver: ${error?.message ?? "Erro desconhecido"}`);
+        });
+    });
+  };
+
+  // Função para exportar a grade como PDF
+  const exportGradePDF = async () => {
+    const gradeTable = document.getElementById("grade-table");
+    if (!gradeTable) {
+      alert("Tabela de grade não encontrada");
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(gradeTable, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const imgWidth = 290;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+      
+      // Adicionar título
+      pdf.setFontSize(16);
+      pdf.text("Grade Horária - EtecFlow", 14, 8);
+      
+      pdf.save("grade-horaria.pdf");
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      alert("Erro ao exportar PDF");
+    }
   };
 
   // Calcular shift type selecionado
@@ -311,11 +383,20 @@ export default function Dashboard({ data }: DashboardProps) {
                   demandas para criar a melhor grade possível.
                 </p>
               </div>
-              <form action={Actions.startSolver}>
-                <button className="bg-white text-slate-900 px-6 py-3 rounded-lg font-bold hover:bg-blue-50 transition-colors shadow-lg">
-                  Rodar Solver Agora
-                </button>
-              </form>
+              <button 
+                onClick={handleRunSolver}
+                disabled={isPending}
+                className="bg-white text-slate-900 px-6 py-3 rounded-lg font-bold hover:bg-blue-50 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isPending ? (
+                  <>
+                    <Loader size={20} className="animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  "Rodar Solver Agora"
+                )}
+              </button>
             </div>
           </div>
         )}
@@ -610,22 +691,30 @@ export default function Dashboard({ data }: DashboardProps) {
           <div className="space-y-6">
             <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
               <h2 className="text-2xl font-bold text-slate-800">Grade Horária</h2>
-              <form className="flex items-center gap-2">
-                <select
-                  name="classGroupId"
-                  defaultValue={selectedClassGroupId ?? ""}
-                  onChange={(e) =>
-                    setSelectedClassGroupId(Number(e.target.value))
-                  }
-                  className="bg-slate-50 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={exportGradePDF}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
-                  {data.classGroups.map((cg) => (
-                    <option key={cg.id} value={cg.id}>
-                      {cg.name}
-                    </option>
-                  ))}
-                </select>
-              </form>
+                  <Download size={16} /> Exportar PDF
+                </button>
+                <form className="flex items-center gap-2">
+                  <select
+                    name="classGroupId"
+                    defaultValue={selectedClassGroupId ?? ""}
+                    onChange={(e) =>
+                      setSelectedClassGroupId(Number(e.target.value))
+                    }
+                    className="bg-slate-50 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {data.classGroups.map((cg) => (
+                      <option key={cg.id} value={cg.id}>
+                        {cg.name}
+                      </option>
+                    ))}
+                  </select>
+                </form>
+              </div>
             </div>
 
             {data.classGroups.length === 0 ? (
@@ -638,7 +727,7 @@ export default function Dashboard({ data }: DashboardProps) {
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full" id="grade-table">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
@@ -972,6 +1061,59 @@ export default function Dashboard({ data }: DashboardProps) {
           </button>
         </form>
       </Modal>
+
+      {/* SOLVER MODAL */}
+      {solverModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-semibold text-lg text-slate-800">
+                {solverStatus === "running" ? "Gerando Grade..." : 
+                 solverStatus === "success" ? "Sucesso!" :
+                 "Erro"}
+              </h3>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="flex flex-col items-center gap-4">
+                {solverStatus === "running" && (
+                  <Loader className="animate-spin text-blue-600" size={40} />
+                )}
+                {solverStatus === "success" && (
+                  <div className="text-green-500">
+                    <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+                {solverStatus === "error" && (
+                  <AlertCircle className="text-red-500" size={40} />
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <p className="text-slate-700 text-center font-medium">{solverMessage}</p>
+                {solverStatus === "running" && (
+                  <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${solverProgress}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {solverStatus !== "running" && (
+                <button
+                  onClick={() => setSolverModalOpen(false)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold transition-colors"
+                >
+                  {solverStatus === "success" ? "Fechar" : "Fechar"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
