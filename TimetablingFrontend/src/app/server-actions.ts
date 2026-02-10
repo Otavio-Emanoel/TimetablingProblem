@@ -5,305 +5,283 @@ import { revalidatePath } from "next/cache";
 const apiBase =
   process.env.API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:8080";
-
-function getFormValue(formData: FormData, name: string) {
-  const direct = formData.get(name);
-  if (direct !== null && direct !== undefined && String(direct).length > 0) {
-    return direct;
-  }
-  for (const [key, value] of formData.entries()) {
-    if (key.endsWith(`_${name}`)) {
-      return value;
-    }
-  }
-  return null;
-}
+  "http://backend:8080";
 
 export async function createProfessor(formData: FormData) {
-  try {
-    const payload = {
-      name: String(getFormValue(formData, "name") ?? "").trim(),
-    };
+  const name = String(formData.get("name") ?? "").trim();
 
-    if (!payload.name) {
-      return;
-    }
-
-    const response = await fetch(`${apiBase}/api/professors`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      console.error(`Error creating professor: ${response.status}`);
-      return;
-    }
-
-    revalidatePath("/");
-  } catch (error) {
-    console.error("Error in createProfessor:", error);
+  if (!name) {
+    throw new Error("Nome e obrigatorio");
   }
+
+  const response = await fetch(`${apiBase}/api/professors`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Erro API (${response.status}): ${errorText}`);
+  }
+
+  revalidatePath("/");
 }
 
 export async function updateProfessor(formData: FormData) {
-  try {
-    const professorId = Number(getFormValue(formData, "professorId") ?? 0);
-    const payload = {
-      name: String(getFormValue(formData, "name") ?? "").trim(),
-    };
+  const id = Number(formData.get("professorId") ?? 0);
+  const name = String(formData.get("name") ?? "").trim();
 
-    if (!professorId || !payload.name) {
-      return;
-    }
-
-    const response = await fetch(`${apiBase}/api/professors/${professorId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      console.error(`Error updating professor: ${response.status}`);
-      return;
-    }
-
-    revalidatePath("/");
-  } catch (error) {
-    console.error("Error in updateProfessor:", error);
+  if (!id || !name) {
+    throw new Error("ID e Nome sao obrigatorios");
   }
+
+  const response = await fetch(`${apiBase}/api/professors/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao atualizar professor: ${response.status}`);
+  }
+
+  revalidatePath("/");
 }
 
 export async function deleteProfessor(formData: FormData) {
-  try {
-    const professorId = Number(getFormValue(formData, "professorId") ?? 0);
-    if (!professorId) {
-      return;
-    }
-
-    const response = await fetch(`${apiBase}/api/professors/${professorId}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      console.error(`Error deleting professor: ${response.status}`);
-      return;
-    }
-
-    revalidatePath("/");
-  } catch (error) {
-    console.error("Error in deleteProfessor:", error);
-  }
-}
-
-export async function createClassGroup(formData: FormData) {
-  try {
-    const payload = {
-      name: String(getFormValue(formData, "name") ?? "").trim(),
-      shiftType: String(getFormValue(formData, "shiftType") ?? "REGULAR").trim(),
-    };
-
-    if (!payload.name) {
-      return;
-    }
-
-    const response = await fetch(`${apiBase}/api/class-groups`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      console.error(`Error creating class group: ${response.status}`);
-      return;
-    }
-
-    revalidatePath("/");
-  } catch (error) {
-    console.error("Error in createClassGroup:", error);
-  }
-}
-
-export async function deleteClassGroup(formData: FormData) {
-  const classGroupId = Number(getFormValue(formData, "classGroupId") ?? 0);
-  if (!classGroupId) {
+  const id = Number(formData.get("professorId") ?? 0);
+  if (!id) {
     return;
   }
 
-  await fetch(`${apiBase}/api/class-groups/${classGroupId}`, {
+  const response = await fetch(`${apiBase}/api/professors/${id}`, {
     method: "DELETE",
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao deletar: ${response.status}`);
+  }
+
+  revalidatePath("/");
+}
+
+export async function createClassGroup(formData: FormData) {
+  const payload = {
+    name: String(formData.get("name") ?? "").trim(),
+    shiftType: String(formData.get("shiftType") ?? "REGULAR").trim(),
+  };
+
+  if (!payload.name) {
+    throw new Error("Nome da turma e obrigatorio");
+  }
+
+  const response = await fetch(`${apiBase}/api/class-groups`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao criar turma: ${response.status}`);
+  }
+
+  revalidatePath("/");
+}
+
+export async function deleteClassGroup(formData: FormData) {
+  const id = Number(formData.get("classGroupId") ?? 0);
+  if (!id) {
+    return;
+  }
+
+  const response = await fetch(`${apiBase}/api/class-groups/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao deletar turma: ${response.status}`);
+  }
 
   revalidatePath("/");
 }
 
 export async function createSubject(formData: FormData) {
-    const payload = {
-      name: String(getFormValue(formData, "name") ?? "").trim(),
-      classGroupId: Number(getFormValue(formData, "classGroupId") ?? 0),
-    };
+  const payload = {
+    name: String(formData.get("name") ?? "").trim(),
+    classGroupId: Number(formData.get("classGroupId") ?? 0),
+  };
 
   if (!payload.name || !payload.classGroupId) {
-    return;
+    throw new Error("Dados invalidos");
   }
 
-  await fetch(`${apiBase}/api/subjects`, {
+  const response = await fetch(`${apiBase}/api/subjects`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao criar materia: ${response.status}`);
+  }
 
   revalidatePath("/");
 }
 
 export async function deleteSubject(formData: FormData) {
-  const subjectId = Number(getFormValue(formData, "subjectId") ?? 0);
-  if (!subjectId) {
+  const id = Number(formData.get("subjectId") ?? 0);
+  if (!id) {
     return;
   }
 
-  await fetch(`${apiBase}/api/subjects/${subjectId}`, {
+  const response = await fetch(`${apiBase}/api/subjects/${id}`, {
     method: "DELETE",
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao deletar materia: ${response.status}`);
+  }
 
   revalidatePath("/");
 }
 
 export async function createDemand(formData: FormData) {
-  const professorIds = formData
-    .getAll("professorIds")
-    .map((value) => Number(value))
-    .filter((value) => Number.isFinite(value));
+  const professorIds = formData.getAll("professorIds").map(Number);
+
   const payload = {
-    subjectId: Number(getFormValue(formData, "subjectId") ?? 0),
+    subjectId: Number(formData.get("subjectId") ?? 0),
     professorIds,
-    quantityPerWeek: Number(getFormValue(formData, "quantityPerWeek") ?? 0),
-    allowDoubleLesson:
-      String(getFormValue(formData, "allowDoubleLesson") ?? "").trim() === "on",
+    quantityPerWeek: Number(formData.get("quantityPerWeek") ?? 0),
+    allowDoubleLesson: formData.get("allowDoubleLesson") === "on",
   };
 
-  if (!payload.subjectId || payload.professorIds.length === 0 || payload.quantityPerWeek <= 0) {
-    return;
+  if (!payload.subjectId || payload.quantityPerWeek <= 0) {
+    throw new Error("Demanda invalida");
   }
 
-  await fetch(`${apiBase}/api/demands`, {
+  const response = await fetch(`${apiBase}/api/demands`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao criar demanda: ${response.status}`);
+  }
 
   revalidatePath("/");
 }
 
 export async function deleteDemand(formData: FormData) {
-  const demandId = Number(getFormValue(formData, "demandId") ?? 0);
-  if (!demandId) {
+  const id = Number(formData.get("demandId") ?? 0);
+  if (!id) {
     return;
   }
 
-  await fetch(`${apiBase}/api/demands/${demandId}`, {
+  const response = await fetch(`${apiBase}/api/demands/${id}`, {
     method: "DELETE",
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao deletar demanda: ${response.status}`);
+  }
 
   revalidatePath("/");
 }
 
 export async function startSolver() {
-  await fetch(`${apiBase}/api/solver/iniciar`, {
+  const response = await fetch(`${apiBase}/api/solver/iniciar`, {
     method: "POST",
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao iniciar solver: ${response.status}`);
+  }
 
   revalidatePath("/");
 }
 
 export async function createTimeslot(formData: FormData) {
-  try {
-    const payload = {
-      dayOfWeek: Number(getFormValue(formData, "dayOfWeek") ?? 0),
-      startTime: String(getFormValue(formData, "startTime") ?? "").trim(),
-      endTime: String(getFormValue(formData, "endTime") ?? "").trim(),
-      shiftType: String(getFormValue(formData, "shiftType") ?? "REGULAR").trim(),
-    };
+  const payload = {
+    dayOfWeek: Number(formData.get("dayOfWeek") ?? 0),
+    startTime: String(formData.get("startTime") ?? "").trim(),
+    endTime: String(formData.get("endTime") ?? "").trim(),
+    shiftType: String(formData.get("shiftType") ?? "REGULAR").trim(),
+  };
 
-    if (!payload.dayOfWeek || !payload.startTime || !payload.endTime) {
-      return;
-    }
-
-    const response = await fetch(`${apiBase}/api/timeslots`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      console.error(`Error creating timeslot: ${response.status}`);
-      return;
-    }
-
-    revalidatePath("/");
-  } catch (error) {
-    console.error("Error in createTimeslot:", error);
+  if (!payload.dayOfWeek || !payload.startTime || !payload.endTime) {
+    throw new Error("Horario invalido");
   }
+
+  const response = await fetch(`${apiBase}/api/timeslots`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao criar horario: ${response.status}`);
+  }
+
+  revalidatePath("/");
 }
 
 export async function deleteTimeslot(formData: FormData) {
-  const timeslotId = Number(getFormValue(formData, "timeslotId") ?? 0);
-  if (!timeslotId) {
+  const id = Number(formData.get("timeslotId") ?? 0);
+  if (!id) {
     return;
   }
 
-  await fetch(`${apiBase}/api/timeslots/${timeslotId}`, {
+  const response = await fetch(`${apiBase}/api/timeslots/${id}`, {
     method: "DELETE",
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao deletar horario: ${response.status}`);
+  }
 
   revalidatePath("/");
 }
 
 export async function createUnavailability(formData: FormData) {
-    const payload = {
-      professorId: Number(getFormValue(formData, "professorId") ?? 0),
-      dayOfWeek: Number(getFormValue(formData, "dayOfWeek") ?? 0),
-      startTime: String(getFormValue(formData, "startTime") ?? "").trim(),
-      endTime: String(getFormValue(formData, "endTime") ?? "").trim(),
-    };
+  const payload = {
+    professorId: Number(formData.get("professorId") ?? 0),
+    dayOfWeek: Number(formData.get("dayOfWeek") ?? 0),
+    startTime: String(formData.get("startTime") ?? "").trim(),
+    endTime: String(formData.get("endTime") ?? "").trim(),
+  };
 
   if (!payload.professorId || !payload.dayOfWeek || !payload.startTime || !payload.endTime) {
-    return;
+    throw new Error("Indisponibilidade invalida");
   }
 
-  await fetch(`${apiBase}/api/unavailability`, {
+  const response = await fetch(`${apiBase}/api/unavailability`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao criar indisponibilidade: ${response.status}`);
+  }
 
   revalidatePath("/");
 }
 
 export async function deleteUnavailability(formData: FormData) {
-  const unavailabilityId = Number(getFormValue(formData, "unavailabilityId") ?? 0);
-  if (!unavailabilityId) {
+  const id = Number(formData.get("unavailabilityId") ?? 0);
+  if (!id) {
     return;
   }
 
-  await fetch(`${apiBase}/api/unavailability/${unavailabilityId}`, {
+  const response = await fetch(`${apiBase}/api/unavailability/${id}`, {
     method: "DELETE",
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao deletar indisponibilidade: ${response.status}`);
+  }
 
   revalidatePath("/");
 }

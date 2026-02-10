@@ -189,14 +189,15 @@ export default function Dashboard({ data }: DashboardProps) {
   ) => {
     e.preventDefault();
     const form = e.currentTarget;
+    const formData = new FormData(form);
     startTransition(() => {
-      void action(new FormData(form))
+      void action(formData)
         .then(() => {
           closeModal();
-          router.refresh();
         })
         .catch((error) => {
           console.error("Erro ao salvar:", error);
+          alert(`Erro ao salvar: ${error?.message ?? "Erro desconhecido"}`);
         });
     });
   };
