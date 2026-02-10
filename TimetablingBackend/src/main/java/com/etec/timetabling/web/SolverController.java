@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,11 +20,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/solver")
 public class SolverController {
+
+    private static final Logger log = LoggerFactory.getLogger(SolverController.class);
+
     private final SolverService solverService;
     private final ScheduleEntryRepository scheduleEntryRepository;
-    // Armazena o estado na memória RAM (Simples para MVP)
+
     private final AtomicReference<String> status = new AtomicReference<>("IDLE");
     private final AtomicReference<SolverService.SolverResult> lastResult = new AtomicReference<>(null);
+    private final AtomicReference<String> errorMessage = new AtomicReference<>(null);
 
     public SolverController(SolverService solverService, ScheduleEntryRepository scheduleEntryRepository) {
         this.solverService = solverService;
@@ -31,49 +37,50 @@ public class SolverController {
 
     @PostMapping("/iniciar")
     public SolverStatusResponse start() {
-        // Se já estiver rodando, não inicia outro
         if ("RUNNING".equals(status.get())) {
-            return new SolverStatusResponse("RUNNING", Instant.now().toString(), null, null);
+            return new SolverStatusResponse("RUNNING", Instant.now().toString(), null, null, "Solver já está rodando");
         }
 
         status.set("RUNNING");
+        lastResult.set(null);
+        errorMessage.set(null);
 
-        // Roda o processo pesado em uma Thread separada (Async)
         CompletableFuture.runAsync(() -> {
             try {
-                System.out.println("--- INICIANDO SOLVER EM BACKGROUND ---");
+                log.info("--- SOLVER INICIADO EM BACKGROUND ---");
                 SolverService.SolverResult result = solverService.solve();
                 lastResult.set(result);
                 status.set("COMPLETED");
-                System.out.println("--- SOLVER FINALIZADO ---");
+                log.info("--- SOLVER FINALIZADO COM SUCESSO ---");
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Solver falhou com erro", e);
+                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                errorMessage.set(msg);
                 status.set("ERROR");
             }
         });
 
-        // Responde imediatamente para o navegador não dar timeout
-        return new SolverStatusResponse("STARTED", Instant.now().toString(), null, null);
+        return new SolverStatusResponse("STARTED", Instant.now().toString(), null, null, null);
     }
 
     @GetMapping("/status")
     public SolverStatusResponse status() {
         SolverService.SolverResult result = lastResult.get();
-        Integer scheduled = result != null ? result.scheduled() : null;
-        Integer unscheduled = result != null ? result.unscheduled() : null;
-        
-        return new SolverStatusResponse(status.get(), Instant.now().toString(), scheduled, unscheduled);
+        Integer sch = result != null ? result.scheduled() : null;
+        Integer unsch = result != null ? result.unscheduled() : null;
+        String details = result != null ? result.details() : errorMessage.get();
+
+        return new SolverStatusResponse(status.get(), Instant.now().toString(), sch, unsch, details);
     }
 
     public record SolverStatusResponse(
         String status,
         String timestamp,
         Integer scheduled,
-        Integer unscheduled
-    ) {
-    }
+        Integer unscheduled,
+        String details
+    ) {}
 
-    // GET para retornar a grade gerada para uma turma específica
     @GetMapping("/grade/{classGroupId}")
     public List<GradeEntryResponse> getGradeForClass(@PathVariable Long classGroupId) {
         return scheduleEntryRepository.findByClassGroupId(classGroupId).stream()
@@ -95,6 +102,5 @@ public class SolverController {
         String endTime,
         String subject,
         List<String> professors
-    ) {
-    }
+    ) {}
 }
