@@ -7,10 +7,23 @@ const apiBase =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:8080";
 
+function getFormValue(formData: FormData, name: string) {
+  const direct = formData.get(name);
+  if (direct !== null && direct !== undefined && String(direct).length > 0) {
+    return direct;
+  }
+  for (const [key, value] of formData.entries()) {
+    if (key.endsWith(`_${name}`)) {
+      return value;
+    }
+  }
+  return null;
+}
+
 export async function createProfessor(formData: FormData) {
   try {
     const payload = {
-      name: String(formData.get("name") ?? "").trim(),
+      name: String(getFormValue(formData, "name") ?? "").trim(),
     };
 
     if (!payload.name) {
@@ -38,9 +51,9 @@ export async function createProfessor(formData: FormData) {
 
 export async function updateProfessor(formData: FormData) {
   try {
-    const professorId = Number(formData.get("professorId") ?? 0);
+    const professorId = Number(getFormValue(formData, "professorId") ?? 0);
     const payload = {
-      name: String(formData.get("name") ?? "").trim(),
+      name: String(getFormValue(formData, "name") ?? "").trim(),
     };
 
     if (!professorId || !payload.name) {
@@ -68,7 +81,7 @@ export async function updateProfessor(formData: FormData) {
 
 export async function deleteProfessor(formData: FormData) {
   try {
-    const professorId = Number(formData.get("professorId") ?? 0);
+    const professorId = Number(getFormValue(formData, "professorId") ?? 0);
     if (!professorId) {
       return;
     }
@@ -91,8 +104,8 @@ export async function deleteProfessor(formData: FormData) {
 export async function createClassGroup(formData: FormData) {
   try {
     const payload = {
-      name: String(formData.get("name") ?? "").trim(),
-      shiftType: String(formData.get("shiftType") ?? "REGULAR").trim(),
+      name: String(getFormValue(formData, "name") ?? "").trim(),
+      shiftType: String(getFormValue(formData, "shiftType") ?? "REGULAR").trim(),
     };
 
     if (!payload.name) {
@@ -119,7 +132,7 @@ export async function createClassGroup(formData: FormData) {
 }
 
 export async function deleteClassGroup(formData: FormData) {
-  const classGroupId = Number(formData.get("classGroupId") ?? 0);
+  const classGroupId = Number(getFormValue(formData, "classGroupId") ?? 0);
   if (!classGroupId) {
     return;
   }
@@ -132,10 +145,10 @@ export async function deleteClassGroup(formData: FormData) {
 }
 
 export async function createSubject(formData: FormData) {
-  const payload = {
-    name: String(formData.get("name") ?? "").trim(),
-    classGroupId: Number(formData.get("classGroupId") ?? 0),
-  };
+    const payload = {
+      name: String(getFormValue(formData, "name") ?? "").trim(),
+      classGroupId: Number(getFormValue(formData, "classGroupId") ?? 0),
+    };
 
   if (!payload.name || !payload.classGroupId) {
     return;
@@ -153,7 +166,7 @@ export async function createSubject(formData: FormData) {
 }
 
 export async function deleteSubject(formData: FormData) {
-  const subjectId = Number(formData.get("subjectId") ?? 0);
+  const subjectId = Number(getFormValue(formData, "subjectId") ?? 0);
   if (!subjectId) {
     return;
   }
@@ -166,12 +179,16 @@ export async function deleteSubject(formData: FormData) {
 }
 
 export async function createDemand(formData: FormData) {
-  const professorIds = formData.getAll("professorIds").map((value) => Number(value));
+  const professorIds = formData
+    .getAll("professorIds")
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value));
   const payload = {
-    subjectId: Number(formData.get("subjectId") ?? 0),
+    subjectId: Number(getFormValue(formData, "subjectId") ?? 0),
     professorIds,
-    quantityPerWeek: Number(formData.get("quantityPerWeek") ?? 0),
-    allowDoubleLesson: String(formData.get("allowDoubleLesson") ?? "").trim() === "on",
+    quantityPerWeek: Number(getFormValue(formData, "quantityPerWeek") ?? 0),
+    allowDoubleLesson:
+      String(getFormValue(formData, "allowDoubleLesson") ?? "").trim() === "on",
   };
 
   if (!payload.subjectId || payload.professorIds.length === 0 || payload.quantityPerWeek <= 0) {
@@ -190,7 +207,7 @@ export async function createDemand(formData: FormData) {
 }
 
 export async function deleteDemand(formData: FormData) {
-  const demandId = Number(formData.get("demandId") ?? 0);
+  const demandId = Number(getFormValue(formData, "demandId") ?? 0);
   if (!demandId) {
     return;
   }
@@ -213,10 +230,10 @@ export async function startSolver() {
 export async function createTimeslot(formData: FormData) {
   try {
     const payload = {
-      dayOfWeek: Number(formData.get("dayOfWeek") ?? 0),
-      startTime: String(formData.get("startTime") ?? "").trim(),
-      endTime: String(formData.get("endTime") ?? "").trim(),
-      shiftType: String(formData.get("shiftType") ?? "REGULAR").trim(),
+      dayOfWeek: Number(getFormValue(formData, "dayOfWeek") ?? 0),
+      startTime: String(getFormValue(formData, "startTime") ?? "").trim(),
+      endTime: String(getFormValue(formData, "endTime") ?? "").trim(),
+      shiftType: String(getFormValue(formData, "shiftType") ?? "REGULAR").trim(),
     };
 
     if (!payload.dayOfWeek || !payload.startTime || !payload.endTime) {
@@ -243,7 +260,7 @@ export async function createTimeslot(formData: FormData) {
 }
 
 export async function deleteTimeslot(formData: FormData) {
-  const timeslotId = Number(formData.get("timeslotId") ?? 0);
+  const timeslotId = Number(getFormValue(formData, "timeslotId") ?? 0);
   if (!timeslotId) {
     return;
   }
@@ -256,12 +273,12 @@ export async function deleteTimeslot(formData: FormData) {
 }
 
 export async function createUnavailability(formData: FormData) {
-  const payload = {
-    professorId: Number(formData.get("professorId") ?? 0),
-    dayOfWeek: Number(formData.get("dayOfWeek") ?? 0),
-    startTime: String(formData.get("startTime") ?? "").trim(),
-    endTime: String(formData.get("endTime") ?? "").trim(),
-  };
+    const payload = {
+      professorId: Number(getFormValue(formData, "professorId") ?? 0),
+      dayOfWeek: Number(getFormValue(formData, "dayOfWeek") ?? 0),
+      startTime: String(getFormValue(formData, "startTime") ?? "").trim(),
+      endTime: String(getFormValue(formData, "endTime") ?? "").trim(),
+    };
 
   if (!payload.professorId || !payload.dayOfWeek || !payload.startTime || !payload.endTime) {
     return;
@@ -279,7 +296,7 @@ export async function createUnavailability(formData: FormData) {
 }
 
 export async function deleteUnavailability(formData: FormData) {
-  const unavailabilityId = Number(formData.get("unavailabilityId") ?? 0);
+  const unavailabilityId = Number(getFormValue(formData, "unavailabilityId") ?? 0);
   if (!unavailabilityId) {
     return;
   }
