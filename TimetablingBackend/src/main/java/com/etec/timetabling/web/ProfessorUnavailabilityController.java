@@ -46,6 +46,7 @@ public class ProfessorUnavailabilityController {
             .map(entry -> new UnavailabilityResponse(
                 entry.getId(),
                 entry.getProfessor().getId(),
+                entry.getProfessor().getName(),
                 entry.getDayOfWeek(),
                 entry.getStartTime().toString(),
                 entry.getEndTime().toString()
@@ -73,6 +74,7 @@ public class ProfessorUnavailabilityController {
         return new UnavailabilityResponse(
             saved.getId(),
             professor.getId(),
+            professor.getName(),
             saved.getDayOfWeek(),
             saved.getStartTime().toString(),
             saved.getEndTime().toString()
@@ -99,6 +101,7 @@ public class ProfessorUnavailabilityController {
     public record UnavailabilityResponse(
         Long id,
         Long professorId,
+        String professorName,
         int dayOfWeek,
         String startTime,
         String endTime

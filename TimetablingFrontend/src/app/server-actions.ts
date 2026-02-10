@@ -269,16 +269,16 @@ export async function deleteTimeslot(formData: FormData) {
 }
 
 export async function createUnavailability(formData: FormData) {
-  const payload = {
-    professorId: Number(formData.get("professorId") ?? 0),
-    dayOfWeek: Number(formData.get("dayOfWeek") ?? 0),
-    startTime: String(formData.get("startTime") ?? "").trim(),
-    endTime: String(formData.get("endTime") ?? "").trim(),
-  };
+  const professorId = Number(formData.get("professorId") ?? 0);
+  const dayOfWeek = Number(formData.get("dayOfWeek") ?? -1);
+  const startTime = String(formData.get("startTime") ?? "").trim();
+  const endTime = String(formData.get("endTime") ?? "").trim();
 
-  if (!payload.professorId || !payload.dayOfWeek || !payload.startTime || !payload.endTime) {
+  if (!professorId || dayOfWeek < 0 || !startTime || !endTime) {
     throw new Error("Indisponibilidade invalida");
   }
+
+  const payload = { professorId, dayOfWeek, startTime, endTime };
 
   const response = await fetch(`${apiBase}/api/unavailability`, {
     method: "POST",

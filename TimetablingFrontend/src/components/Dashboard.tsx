@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Download,
   Loader,
+  ShieldAlert,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -384,6 +385,7 @@ export default function Dashboard({ data }: DashboardProps) {
             { id: "subjects", label: "Matérias", icon: BookOpen },
             { id: "demands", label: "Demandas", icon: AlertCircle },
             { id: "timeslots", label: "Horários", icon: Clock },
+            { id: "restrictions", label: "Restrições", icon: ShieldAlert },
             { id: "grade", label: "Grade Final", icon: Calendar },
           ].map((item) => (
             <button
@@ -742,6 +744,88 @@ export default function Dashboard({ data }: DashboardProps) {
                   Nenhum horário cadastrado.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* RESTRIÇÕES TAB */}
+        {activeTab === "restrictions" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-slate-800">
+                Restrições de Horário
+              </h2>
+              <ActionButton
+                onClick={() => openModal("createRestriction")}
+                label="Nova Restrição"
+                icon={Plus}
+              />
+            </div>
+            <p className="text-slate-500 text-sm">
+              Defina horários em que um professor <strong>não pode</strong> dar aula.
+              Use &ldquo;Todos os dias&rdquo; para bloquear um horário de segunda a sexta.
+            </p>
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <table className="w-full">
+                <TableHeader cols={["Professor", "Dia", "Início", "Fim"]} />
+                <tbody className="divide-y divide-slate-100">
+                  {data.unavailability.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                        Nenhuma restrição cadastrada.
+                      </td>
+                    </tr>
+                  ) : (
+                    data.unavailability.map((u) => {
+                      const profName = u.professorName
+                        ?? data.professors.find((p) => p.id === u.professorId)?.name
+                        ?? `Prof #${u.professorId}`;
+                      const dayName = u.dayOfWeek === 0
+                        ? "Todos os dias"
+                        : dayLabels[u.dayOfWeek] ?? `Dia ${u.dayOfWeek}`;
+                      return (
+                        <tr key={u.id} className="hover:bg-slate-50">
+                          <td className="px-6 py-4 font-medium text-slate-800">
+                            {profName}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              u.dayOfWeek === 0
+                                ? "bg-red-100 text-red-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}>
+                              {dayName}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">
+                            {u.startTime.substring(0, 5)}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">
+                            {u.endTime.substring(0, 5)}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <form
+                              action={(formData) =>
+                                startTransition(() => {
+                                  void Actions.deleteUnavailability(formData).then(() => router.refresh());
+                                })
+                              }
+                            >
+                              <input type="hidden" name="unavailabilityId" value={u.id} />
+                              <button
+                                type="submit"
+                                className="text-red-400 hover:text-red-600 transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </form>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -1126,6 +1210,78 @@ export default function Dashboard({ data }: DashboardProps) {
             className="w-full bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? "Salvando..." : "Salvar Horário"}
+          </button>
+        </form>
+      </Modal>
+
+      {/* Nova Restrição Modal */}
+      <Modal
+        isOpen={isModalOpen && modalType === "createRestriction"}
+        onClose={closeModal}
+        title="Nova Restrição de Horário"
+      >
+        <form
+          onSubmit={(e) => handleFormSubmit(e, Actions.createUnavailability)}
+          className="flex flex-col gap-4"
+        >
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Professor</label>
+            <select
+              name="professorId"
+              required
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Selecione...</option>
+              {data.professors.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Dia da Semana</label>
+            <select
+              name="dayOfWeek"
+              required
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="0">Todos os dias (Seg-Sex)</option>
+              <option value="1">Segunda-feira</option>
+              <option value="2">Terça-feira</option>
+              <option value="3">Quarta-feira</option>
+              <option value="4">Quinta-feira</option>
+              <option value="5">Sexta-feira</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Início</label>
+              <input
+                type="time"
+                name="startTime"
+                required
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Fim</label>
+              <input
+                type="time"
+                name="endTime"
+                required
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-slate-400">
+            Exemplo: para bloquear todas as manhãs de segunda, escolha &ldquo;Segunda-feira&rdquo;, 08:00 a 12:00.
+            Para bloquear um horário todos os dias, use &ldquo;Todos os dias&rdquo;.
+          </p>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2 rounded-lg font-bold transition-colors"
+          >
+            {isPending ? "Salvando..." : "Criar Restrição"}
           </button>
         </form>
       </Modal>

@@ -36,6 +36,7 @@ export type Timeslot = {
 export type Unavailability = {
   id: number;
   professorId: number;
+  professorName?: string;
   dayOfWeek: number;
   startTime: string;
   endTime: string;

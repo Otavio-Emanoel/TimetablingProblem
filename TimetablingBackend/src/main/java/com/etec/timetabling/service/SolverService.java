@@ -11,15 +11,17 @@ import com.etec.timetabling.repository.DemandRepository;
 import com.etec.timetabling.repository.ProfessorUnavailabilityRepository;
 import com.etec.timetabling.repository.ScheduleEntryRepository;
 import com.etec.timetabling.repository.TimeslotRepository;
+
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -36,180 +38,289 @@ public class SolverService {
     private final ProfessorUnavailabilityRepository unavailabilityRepository;
 
     public SolverService(
-        DemandRepository demandRepository,
-        ScheduleEntryRepository scheduleEntryRepository,
-        TimeslotRepository timeslotRepository,
-        ProfessorUnavailabilityRepository unavailabilityRepository
-    ) {
+            DemandRepository demandRepository,
+            ScheduleEntryRepository scheduleEntryRepository,
+            TimeslotRepository timeslotRepository,
+            ProfessorUnavailabilityRepository unavailabilityRepository) {
         this.demandRepository = demandRepository;
         this.scheduleEntryRepository = scheduleEntryRepository;
         this.timeslotRepository = timeslotRepository;
         this.unavailabilityRepository = unavailabilityRepository;
     }
 
-    /**
-     * Resolve o problema de grade horária.
-     * DEVE rodar dentro de uma transação para que lazy-loading funcione
-     * e para garantir atomicidade (deleteAll + saveAll).
-     */
+    // ========================= RECORDS =========================
+
+    private record TimeBlock(int dayOfWeek, LocalTime startTime, LocalTime endTime) {
+        boolean overlaps(int day, LocalTime start, LocalTime end) {
+            return this.dayOfWeek == day
+                    && this.startTime.isBefore(end)
+                    && this.endTime.isAfter(start);
+        }
+    }
+
+    private record SlotPair(Timeslot first, Timeslot second) {}
+
+    private static class SchedulingUnit {
+        final Demand demand;
+        final ClassGroup classGroup;
+        final List<Professor> professors;
+        final List<Timeslot> eligibleSlots;
+        final boolean isDouble;
+
+        SchedulingUnit(Demand demand, ClassGroup classGroup,
+                       List<Professor> professors, List<Timeslot> eligibleSlots,
+                       boolean isDouble) {
+            this.demand = demand;
+            this.classGroup = classGroup;
+            this.professors = professors;
+            this.eligibleSlots = eligibleSlots;
+            this.isDouble = isDouble;
+        }
+    }
+
+    public record SolverResult(int scheduled, int unscheduled, String details) {}
+
+    // ========================= MAIN =========================
+
     @Transactional
     public SolverResult solve() {
         log.info("========================================");
         log.info("          SOLVER INICIANDO              ");
         log.info("========================================");
 
-        // ── 1. Limpar grade anterior ──────────────────────────────
+        // 1. Limpar grade anterior
         long previousCount = scheduleEntryRepository.count();
         scheduleEntryRepository.deleteAll();
-        log.info("Removidas {} entradas anteriores da grade", previousCount);
+        scheduleEntryRepository.flush();
+        log.info("Removidas {} entradas anteriores", previousCount);
 
-        // ── 2. Carregar TODOS os dados dentro da transação ───────
+        // 2. Carregar dados
         List<Demand> allDemands = demandRepository.findAll();
         List<Timeslot> allTimeslots = timeslotRepository.findAll();
         List<ProfessorUnavailability> allUnavailabilities = unavailabilityRepository.findAll();
 
-        // Forçar inicialização da coleção lazy @ManyToMany(professors)
         for (Demand d : allDemands) {
             d.getProfessors().size();
         }
 
-        log.info("Dados carregados: {} demandas, {} timeslots, {} indisponibilidades",
-            allDemands.size(), allTimeslots.size(), allUnavailabilities.size());
+        log.info("Dados: {} demandas, {} timeslots, {} indisponibilidades",
+                allDemands.size(), allTimeslots.size(), allUnavailabilities.size());
 
-        // ── 3. Validações rápidas ────────────────────────────────
+        // 3. Validacoes
         if (allDemands.isEmpty()) {
-            String msg = "Nenhuma demanda cadastrada. Crie demandas vinculando matérias a professores.";
-            log.warn(msg);
-            return new SolverResult(0, 0, msg);
+            return new SolverResult(0, 0, "Nenhuma demanda cadastrada.");
         }
         if (allTimeslots.isEmpty()) {
             int total = allDemands.stream().mapToInt(Demand::getQuantityPerWeek).sum();
-            String msg = "Nenhum timeslot cadastrado. Crie os horários de aula primeiro.";
-            log.warn(msg);
-            return new SolverResult(0, total, msg);
+            return new SolverResult(0, total, "Nenhum timeslot cadastrado.");
         }
 
-        // Avisar sobre demandas sem professores
-        List<Demand> demandsWithoutProfs = allDemands.stream()
-            .filter(d -> d.getProfessors().isEmpty())
-            .toList();
-        if (!demandsWithoutProfs.isEmpty()) {
-            log.warn("{} demandas sem professores (serão ignoradas):", demandsWithoutProfs.size());
-            for (Demand d : demandsWithoutProfs) {
-                log.warn("  - Demanda #{}: matéria '{}'", d.getId(), d.getSubject().getName());
-            }
-        }
-
-        // ── 4. Indexar timeslots por turno ───────────────────────
+        // 4. Indexar timeslots por turno
         Map<ShiftType, List<Timeslot>> timeslotsByShift = allTimeslots.stream()
-            .sorted(Comparator.comparingInt(Timeslot::getDayOfWeek)
-                .thenComparing(Timeslot::getStartTime))
-            .collect(Collectors.groupingBy(Timeslot::getShiftType));
+                .sorted(Comparator.comparingInt(Timeslot::getDayOfWeek)
+                        .thenComparing(Timeslot::getStartTime))
+                .collect(Collectors.groupingBy(Timeslot::getShiftType));
 
         for (var e : timeslotsByShift.entrySet()) {
             log.info("  Turno {}: {} slots", e.getKey(), e.getValue().size());
         }
 
-        // ── 5. Indexar indisponibilidades por professor ──────────
-        Map<Long, List<ProfessorUnavailability>> unavailByProf = allUnavailabilities.stream()
-            .collect(Collectors.groupingBy(u -> u.getProfessor().getId()));
+        // 5. Pre-computar pares consecutivos (aula dupla)
+        Map<ShiftType, List<SlotPair>> consecutivePairsByShift = new HashMap<>();
+        for (var entry : timeslotsByShift.entrySet()) {
+            List<Timeslot> slots = entry.getValue();
+            List<SlotPair> pairs = new ArrayList<>();
+            for (int i = 0; i < slots.size() - 1; i++) {
+                Timeslot a = slots.get(i);
+                Timeslot b = slots.get(i + 1);
+                if (a.getDayOfWeek() == b.getDayOfWeek()
+                        && a.getEndTime().equals(b.getStartTime())) {
+                    pairs.add(new SlotPair(a, b));
+                }
+            }
+            consecutivePairsByShift.put(entry.getKey(), pairs);
+            log.info("  Turno {}: {} pares consecutivos", entry.getKey(), pairs.size());
+        }
 
-        // ── 6. Expandir demandas em tarefas individuais ──────────
-        List<AssignmentTask> tasks = new ArrayList<>();
+        // 6. Expandir indisponibilidades (dayOfWeek=0 -> todos os dias uteis)
+        Map<Long, List<TimeBlock>> unavailByProf = new HashMap<>();
+        for (ProfessorUnavailability u : allUnavailabilities) {
+            long profId = u.getProfessor().getId();
+            if (u.getDayOfWeek() == 0) {
+                for (int day = 1; day <= 5; day++) {
+                    unavailByProf.computeIfAbsent(profId, k -> new ArrayList<>())
+                            .add(new TimeBlock(day, u.getStartTime(), u.getEndTime()));
+                }
+            } else {
+                unavailByProf.computeIfAbsent(profId, k -> new ArrayList<>())
+                        .add(new TimeBlock(u.getDayOfWeek(), u.getStartTime(), u.getEndTime()));
+            }
+        }
+        if (!unavailByProf.isEmpty()) {
+            for (var e : unavailByProf.entrySet()) {
+                log.info("  Prof #{}: {} bloqueios", e.getKey(), e.getValue().size());
+            }
+        }
+
+        // 7. Criar unidades de agendamento
+        List<SchedulingUnit> allUnits = new ArrayList<>();
+        int totalLessons = 0;
+
+        Map<Long, Integer> profDemandPressure = new HashMap<>();
+        for (Demand d : allDemands) {
+            for (Professor p : d.getProfessors()) {
+                profDemandPressure.merge(p.getId(), d.getQuantityPerWeek(), Integer::sum);
+            }
+        }
+
         for (Demand demand : allDemands) {
-            if (demand.getProfessors().isEmpty()) continue;
+            if (demand.getProfessors().isEmpty()) {
+                log.warn("Demanda #{} '{}' sem professores - ignorada",
+                        demand.getId(), demand.getSubject().getName());
+                continue;
+            }
 
             ClassGroup cg = demand.getSubject().getClassGroup();
             List<Professor> profs = new ArrayList<>(demand.getProfessors());
             List<Timeslot> eligible = timeslotsByShift.getOrDefault(cg.getShiftType(), List.of());
 
             if (eligible.isEmpty()) {
-                log.warn("Turma '{}' usa turno {} mas não há timeslots desse turno",
-                    cg.getName(), cg.getShiftType());
+                log.warn("Turma '{}' ({}) sem timeslots disponiveis", cg.getName(), cg.getShiftType());
+                continue;
             }
 
-            for (int i = 0; i < demand.getQuantityPerWeek(); i++) {
-                tasks.add(new AssignmentTask(demand, cg, profs, eligible));
+            int qty = demand.getQuantityPerWeek();
+            totalLessons += qty;
+
+            if (demand.isAllowDoubleLesson() && qty >= 2) {
+                int doubles = qty / 2;
+                int singles = qty % 2;
+                for (int i = 0; i < doubles; i++) {
+                    allUnits.add(new SchedulingUnit(demand, cg, profs, eligible, true));
+                }
+                for (int i = 0; i < singles; i++) {
+                    allUnits.add(new SchedulingUnit(demand, cg, profs, eligible, false));
+                }
+            } else {
+                for (int i = 0; i < qty; i++) {
+                    allUnits.add(new SchedulingUnit(demand, cg, profs, eligible, false));
+                }
             }
         }
 
-        log.info("Total de {} aulas individuais a alocar", tasks.size());
+        log.info("Total: {} aulas a alocar ({} unidades)", totalLessons, allUnits.size());
 
-        if (tasks.isEmpty()) {
-            String msg = "Nenhuma aula a alocar (demandas sem professores ou quantityPerWeek=0).";
-            log.warn(msg);
-            return new SolverResult(0, 0, msg);
+        if (allUnits.isEmpty()) {
+            return new SolverResult(0, 0, "Nenhuma aula a alocar.");
         }
 
-        // ── 7. Ordenar: mais restritas primeiro ──────────────────
-        tasks.sort(Comparator
-            .comparingInt((AssignmentTask t) -> t.eligibleSlots.size())
-            .thenComparingInt(t -> t.professors.size()));
+        // 8. Agrupar por turma e ordenar internamente
+        Map<Long, List<SchedulingUnit>> unitsByClass = new LinkedHashMap<>();
+        for (SchedulingUnit unit : allUnits) {
+            unitsByClass.computeIfAbsent(unit.classGroup.getId(), k -> new ArrayList<>()).add(unit);
+        }
 
-        // ── 8. Algoritmo greedy com scoring ──────────────────────
-        Map<Long, List<TimeBlock>> classGroupTimeBlocks = new HashMap<>();
-        Map<Long, List<TimeBlock>> professorTimeBlocks = new HashMap<>();
+        for (List<SchedulingUnit> group : unitsByClass.values()) {
+            group.sort(Comparator
+                    .comparing((SchedulingUnit u) -> !u.isDouble)
+                    .thenComparingInt(u -> u.eligibleSlots.size())
+                    .thenComparing(Comparator.comparingInt((SchedulingUnit u) ->
+                            u.professors.stream()
+                                    .mapToInt(p -> profDemandPressure.getOrDefault(p.getId(), 0))
+                                    .max().orElse(0)
+                    ).reversed()));
+        }
+
+        // 9. Intercalar turmas (round-robin)
+        List<SchedulingUnit> interleavedUnits = new ArrayList<>();
+        List<List<SchedulingUnit>> groups = new ArrayList<>(unitsByClass.values());
+        boolean hasMore = true;
+        int idx = 0;
+        while (hasMore) {
+            hasMore = false;
+            for (List<SchedulingUnit> group : groups) {
+                if (idx < group.size()) {
+                    interleavedUnits.add(group.get(idx));
+                    hasMore = true;
+                }
+            }
+            idx++;
+        }
+
+        log.info("Turmas a processar: {}", unitsByClass.keySet().stream()
+                .map(id -> unitsByClass.get(id).getFirst().classGroup.getName())
+                .collect(Collectors.joining(", ")));
+
+        // 10. Algoritmo greedy com scoring
+        Map<Long, List<TimeBlock>> classGroupBlocks = new HashMap<>();
+        Map<Long, List<TimeBlock>> professorBlocks = new HashMap<>();
         Map<String, Integer> subjectDayCount = new HashMap<>();
+        Map<String, Integer> classGroupDayCount = new HashMap<>();
 
         int scheduled = 0;
         int unscheduled = 0;
         List<ScheduleEntry> entries = new ArrayList<>();
         List<String> unscheduledDetails = new ArrayList<>();
 
-        for (AssignmentTask task : tasks) {
-            Timeslot bestSlot = findBestSlot(
-                task, classGroupTimeBlocks, professorTimeBlocks,
-                unavailByProf, subjectDayCount
-            );
+        for (SchedulingUnit unit : interleavedUnits) {
+            if (unit.isDouble) {
+                boolean placed = scheduleDouble(
+                        unit, classGroupBlocks, professorBlocks,
+                        unavailByProf, subjectDayCount, classGroupDayCount,
+                        consecutivePairsByShift.getOrDefault(unit.classGroup.getShiftType(), List.of()),
+                        entries);
 
-            if (bestSlot == null) {
-                unscheduled++;
-                String detail = String.format("'%s' p/ turma '%s' (prof: %s)",
-                    task.demand.getSubject().getName(),
-                    task.classGroup.getName(),
-                    task.professors.stream().map(Professor::getName)
-                        .collect(Collectors.joining(", ")));
-                unscheduledDetails.add(detail);
-                continue;
+                if (placed) {
+                    scheduled += 2;
+                } else {
+                    for (int i = 0; i < 2; i++) {
+                        Timeslot slot = findBestSingleSlot(
+                                unit, classGroupBlocks, professorBlocks,
+                                unavailByProf, subjectDayCount, classGroupDayCount);
+                        if (slot != null) {
+                            placeEntry(slot, unit, classGroupBlocks, professorBlocks,
+                                    subjectDayCount, classGroupDayCount, entries);
+                            scheduled++;
+                        } else {
+                            unscheduled++;
+                            unscheduledDetails.add(formatUnscheduled(unit));
+                        }
+                    }
+                }
+            } else {
+                Timeslot bestSlot = findBestSingleSlot(
+                        unit, classGroupBlocks, professorBlocks,
+                        unavailByProf, subjectDayCount, classGroupDayCount);
+
+                if (bestSlot != null) {
+                    placeEntry(bestSlot, unit, classGroupBlocks, professorBlocks,
+                            subjectDayCount, classGroupDayCount, entries);
+                    scheduled++;
+                } else {
+                    unscheduled++;
+                    unscheduledDetails.add(formatUnscheduled(unit));
+                }
             }
-
-            // Criar entrada na grade
-            ScheduleEntry entry = new ScheduleEntry();
-            entry.setTimeslot(bestSlot);
-            entry.setClassGroup(task.classGroup);
-            entry.setSubject(task.demand.getSubject());
-            entry.setProfessors(new HashSet<>(task.professors));
-            entries.add(entry);
-
-            // Atualizar mapas de conflito
-            TimeBlock block = new TimeBlock(
-                bestSlot.getDayOfWeek(), bestSlot.getStartTime(), bestSlot.getEndTime());
-            classGroupTimeBlocks
-                .computeIfAbsent(task.classGroup.getId(), k -> new ArrayList<>())
-                .add(block);
-
-            for (Professor prof : task.professors) {
-                professorTimeBlocks
-                    .computeIfAbsent(prof.getId(), k -> new ArrayList<>())
-                    .add(block);
-            }
-
-            String dayKey = task.classGroup.getId() + "-"
-                + task.demand.getSubject().getId() + "-"
-                + bestSlot.getDayOfWeek();
-            subjectDayCount.merge(dayKey, 1, Integer::sum);
-
-            scheduled++;
         }
 
-        // ── 9. Salvar tudo de uma vez ────────────────────────────
+        // 11. Salvar
         scheduleEntryRepository.saveAll(entries);
 
-        // ── 10. Montar resumo ────────────────────────────────────
+        // 12. Resumo
         StringBuilder details = new StringBuilder();
-        details.append(String.format("Alocadas: %d | Não alocadas: %d", scheduled, unscheduled));
+        details.append(String.format("Alocadas: %d | Nao alocadas: %d", scheduled, unscheduled));
+
+        Map<String, Long> perClass = entries.stream()
+                .collect(Collectors.groupingBy(e -> e.getClassGroup().getName(), Collectors.counting()));
+        if (!perClass.isEmpty()) {
+            details.append("\n\nPor turma:");
+            perClass.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(e -> details.append(String.format("\n  %s: %d aulas", e.getKey(), e.getValue())));
+        }
+
         if (!unscheduledDetails.isEmpty()) {
-            details.append("\nAulas não alocadas:");
+            details.append("\n\nNao alocadas:");
             for (String d : unscheduledDetails) {
                 details.append("\n  - ").append(d);
             }
@@ -217,9 +328,12 @@ public class SolverService {
 
         log.info("========================================");
         log.info("          SOLVER FINALIZADO             ");
-        log.info("  Alocadas: {}  |  Não alocadas: {}", scheduled, unscheduled);
+        log.info("  Alocadas: {}  |  Nao alocadas: {}", scheduled, unscheduled);
+        perClass.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(e -> log.info("  {}: {} aulas", e.getKey(), e.getValue()));
         if (!unscheduledDetails.isEmpty()) {
-            log.info("  Aulas não alocadas:");
+            log.info("  Nao alocadas:");
             for (String d : unscheduledDetails) {
                 log.info("    - {}", d);
             }
@@ -229,93 +343,194 @@ public class SolverService {
         return new SolverResult(scheduled, unscheduled, details.toString());
     }
 
-    /**
-     * Encontra o melhor timeslot para a tarefa, respeitando todas as restrições:
-     *  - Turma não pode ter 2 aulas no mesmo slot
-     *  - Professor não pode ter conflito de horário (DETECTA CROSS-SHIFT por sobreposição real)
-     *  - Indisponibilidade do professor
-     * Usa scoring para distribuir matérias entre dias diferentes.
-     */
-    private Timeslot findBestSlot(
-        AssignmentTask task,
-        Map<Long, List<TimeBlock>> classGroupTimeBlocks,
-        Map<Long, List<TimeBlock>> professorTimeBlocks,
-        Map<Long, List<ProfessorUnavailability>> unavailByProf,
-        Map<String, Integer> subjectDayCount
-    ) {
+    // ========================= CONFLICT CHECK =========================
+
+    private boolean hasConflict(
+            Timeslot slot,
+            List<Professor> professors,
+            Long classGroupId,
+            Map<Long, List<TimeBlock>> classGroupBlocks,
+            Map<Long, List<TimeBlock>> professorBlocks,
+            Map<Long, List<TimeBlock>> unavailByProf) {
+
+        int day = slot.getDayOfWeek();
+        LocalTime start = slot.getStartTime();
+        LocalTime end = slot.getEndTime();
+
+        List<TimeBlock> cgBlocks = classGroupBlocks.getOrDefault(classGroupId, List.of());
+        for (TimeBlock cb : cgBlocks) {
+            if (cb.overlaps(day, start, end)) return true;
+        }
+
+        for (Professor prof : professors) {
+            List<TimeBlock> blocks = professorBlocks.getOrDefault(prof.getId(), List.of());
+            for (TimeBlock b : blocks) {
+                if (b.overlaps(day, start, end)) return true;
+            }
+
+            List<TimeBlock> unavails = unavailByProf.getOrDefault(prof.getId(), List.of());
+            for (TimeBlock u : unavails) {
+                if (u.overlaps(day, start, end)) return true;
+            }
+        }
+
+        return false;
+    }
+
+    // ========================= SCORING =========================
+
+    private int scoreSlot(
+            Timeslot slot,
+            SchedulingUnit unit,
+            Map<String, Integer> subjectDayCount,
+            Map<String, Integer> classGroupDayCount) {
+
+        int score = 0;
+        int day = slot.getDayOfWeek();
+        long cgId = unit.classGroup.getId();
+        long subjId = unit.demand.getSubject().getId();
+
+        String subjDayKey = cgId + "-" + subjId + "-" + day;
+        int existingSubjectOnDay = subjectDayCount.getOrDefault(subjDayKey, 0);
+        score -= existingSubjectOnDay * 200;
+
+        String cgDayKey = cgId + "-" + day;
+        int totalOnDay = classGroupDayCount.getOrDefault(cgDayKey, 0);
+        score -= totalOnDay * 40;
+
+        int minuteOfDay = slot.getStartTime().getHour() * 60 + slot.getStartTime().getMinute();
+        score -= minuteOfDay / 30;
+
+        return score;
+    }
+
+    // ========================= SINGLE =========================
+
+    private Timeslot findBestSingleSlot(
+            SchedulingUnit unit,
+            Map<Long, List<TimeBlock>> classGroupBlocks,
+            Map<Long, List<TimeBlock>> professorBlocks,
+            Map<Long, List<TimeBlock>> unavailByProf,
+            Map<String, Integer> subjectDayCount,
+            Map<String, Integer> classGroupDayCount) {
+
         Timeslot bestSlot = null;
         int bestScore = Integer.MIN_VALUE;
 
-        for (Timeslot slot : task.eligibleSlots) {
-            // ── Restrição 1: turma já ocupada nesse horário (por sobreposição real) ──
-            boolean classConflict = false;
-            List<TimeBlock> cgBlocks = classGroupTimeBlocks.getOrDefault(task.classGroup.getId(), List.of());
-            for (TimeBlock cb : cgBlocks) {
-                if (cb.dayOfWeek == slot.getDayOfWeek()
-                    && slot.getStartTime().isBefore(cb.endTime)
-                    && slot.getEndTime().isAfter(cb.startTime)) {
-                    classConflict = true;
-                    break;
-                }
+        for (Timeslot slot : unit.eligibleSlots) {
+            if (hasConflict(slot, unit.professors, unit.classGroup.getId(),
+                    classGroupBlocks, professorBlocks, unavailByProf)) {
+                continue;
             }
-            if (classConflict) continue;
 
-            // ── Restrição 2: conflito de professor (cross-shift) ─
-            boolean conflict = false;
-            for (Professor prof : task.professors) {
-                // Verificar alocações existentes (qualquer turno) por sobreposição real
-                List<TimeBlock> blocks = professorTimeBlocks.getOrDefault(prof.getId(), List.of());
-                for (TimeBlock b : blocks) {
-                    if (b.dayOfWeek == slot.getDayOfWeek()
-                        && slot.getStartTime().isBefore(b.endTime)
-                        && slot.getEndTime().isAfter(b.startTime)) {
-                        conflict = true;
-                        break;
-                    }
-                }
-                if (conflict) break;
-
-                // ── Restrição 3: indisponibilidade cadastrada ────
-                List<ProfessorUnavailability> unavails =
-                    unavailByProf.getOrDefault(prof.getId(), List.of());
-                for (ProfessorUnavailability u : unavails) {
-                    if (u.getDayOfWeek() == slot.getDayOfWeek()
-                        && slot.getStartTime().isBefore(u.getEndTime())
-                        && slot.getEndTime().isAfter(u.getStartTime())) {
-                        conflict = true;
-                        break;
-                    }
-                }
-                if (conflict) break;
-            }
-            if (conflict) continue;
-
-            // ── Scoring: preferir distribuição entre dias ────────
-            int score = 0;
-            String dayKey = task.classGroup.getId() + "-"
-                + task.demand.getSubject().getId() + "-"
-                + slot.getDayOfWeek();
-            int existingOnDay = subjectDayCount.getOrDefault(dayKey, 0);
-            score -= existingOnDay * 100;
-
-            if (bestSlot == null || score > bestScore) {
-                bestSlot = slot;
+            int score = scoreSlot(slot, unit, subjectDayCount, classGroupDayCount);
+            if (score > bestScore) {
                 bestScore = score;
+                bestSlot = slot;
             }
         }
 
         return bestSlot;
     }
 
-    // ── Records internos ─────────────────────────────────────────
-    private record TimeBlock(int dayOfWeek, LocalTime startTime, LocalTime endTime) {}
+    // ========================= DOUBLE =========================
 
-    private record AssignmentTask(
-        Demand demand,
-        ClassGroup classGroup,
-        List<Professor> professors,
-        List<Timeslot> eligibleSlots
-    ) {}
+    private boolean scheduleDouble(
+            SchedulingUnit unit,
+            Map<Long, List<TimeBlock>> classGroupBlocks,
+            Map<Long, List<TimeBlock>> professorBlocks,
+            Map<Long, List<TimeBlock>> unavailByProf,
+            Map<String, Integer> subjectDayCount,
+            Map<String, Integer> classGroupDayCount,
+            List<SlotPair> availablePairs,
+            List<ScheduleEntry> entries) {
 
-    public record SolverResult(int scheduled, int unscheduled, String details) {}
+        SlotPair bestPair = null;
+        int bestScore = Integer.MIN_VALUE;
+
+        for (SlotPair pair : availablePairs) {
+            if (!unit.eligibleSlots.contains(pair.first)
+                    || !unit.eligibleSlots.contains(pair.second)) {
+                continue;
+            }
+
+            if (hasConflict(pair.first, unit.professors, unit.classGroup.getId(),
+                    classGroupBlocks, professorBlocks, unavailByProf)) {
+                continue;
+            }
+            if (hasConflict(pair.second, unit.professors, unit.classGroup.getId(),
+                    classGroupBlocks, professorBlocks, unavailByProf)) {
+                continue;
+            }
+
+            int score = scoreSlot(pair.first, unit, subjectDayCount, classGroupDayCount)
+                    + scoreSlot(pair.second, unit, subjectDayCount, classGroupDayCount)
+                    + 50;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestPair = pair;
+            }
+        }
+
+        if (bestPair == null) return false;
+
+        for (Timeslot slot : List.of(bestPair.first, bestPair.second)) {
+            placeEntry(slot, unit, classGroupBlocks, professorBlocks,
+                    subjectDayCount, classGroupDayCount, entries);
+        }
+
+        return true;
+    }
+
+    // ========================= PLACE =========================
+
+    private void placeEntry(
+            Timeslot slot,
+            SchedulingUnit unit,
+            Map<Long, List<TimeBlock>> classGroupBlocks,
+            Map<Long, List<TimeBlock>> professorBlocks,
+            Map<String, Integer> subjectDayCount,
+            Map<String, Integer> classGroupDayCount,
+            List<ScheduleEntry> entries) {
+
+        ScheduleEntry entry = new ScheduleEntry();
+        entry.setTimeslot(slot);
+        entry.setClassGroup(unit.classGroup);
+        entry.setSubject(unit.demand.getSubject());
+        entry.setProfessors(new HashSet<>(unit.professors));
+        entries.add(entry);
+
+        TimeBlock block = new TimeBlock(
+                slot.getDayOfWeek(), slot.getStartTime(), slot.getEndTime());
+
+        classGroupBlocks
+                .computeIfAbsent(unit.classGroup.getId(), k -> new ArrayList<>())
+                .add(block);
+
+        for (Professor prof : unit.professors) {
+            professorBlocks
+                    .computeIfAbsent(prof.getId(), k -> new ArrayList<>())
+                    .add(block);
+        }
+
+        String subjDayKey = unit.classGroup.getId() + "-"
+                + unit.demand.getSubject().getId() + "-"
+                + slot.getDayOfWeek();
+        subjectDayCount.merge(subjDayKey, 1, Integer::sum);
+
+        String cgDayKey = unit.classGroup.getId() + "-" + slot.getDayOfWeek();
+        classGroupDayCount.merge(cgDayKey, 1, Integer::sum);
+    }
+
+    // ========================= HELPERS =========================
+
+    private String formatUnscheduled(SchedulingUnit unit) {
+        return String.format("'%s' p/ turma '%s' (prof: %s)%s",
+                unit.demand.getSubject().getName(),
+                unit.classGroup.getName(),
+                unit.professors.stream().map(Professor::getName)
+                        .collect(Collectors.joining(", ")),
+                unit.isDouble ? " [aula dupla]" : "");
+    }
 }
