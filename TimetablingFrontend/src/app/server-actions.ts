@@ -193,13 +193,25 @@ export async function deleteDemand(formData: FormData) {
 export async function startSolver() {
   const response = await fetch(`${apiBase}/api/solver/iniciar`, {
     method: "POST",
+    cache: "no-store", // Importante para não cachear
   });
 
   if (!response.ok) {
     throw new Error(`Erro ao iniciar solver: ${response.status}`);
   }
+  // Não fazemos revalidatePath aqui pois o processo ainda não acabou
+}
 
-  revalidatePath("/");
+export async function getSolverStatus() {
+  const response = await fetch(`${apiBase}/api/solver/status`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return { status: "ERROR" };
+  }
+
+  return response.json();
 }
 
 export async function createTimeslot(formData: FormData) {

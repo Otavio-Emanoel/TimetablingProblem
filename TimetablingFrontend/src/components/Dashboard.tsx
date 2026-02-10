@@ -210,30 +210,50 @@ export default function Dashboard({ data }: DashboardProps) {
     });
   };
 
-  // Handler para executar o solver
-  const handleRunSolver = () => {
+  // Handler para executar o solver com Polling
+  const handleRunSolver = async () => {
     setSolverModalOpen(true);
     setSolverStatus("running");
-    setSolverProgress(0);
-    setSolverMessage("Iniciando o solver...");
+    setSolverProgress(10); // Começa um pouco
+    setSolverMessage("Iniciando motor de otimização...");
 
-    startTransition(() => {
-      void Actions.startSolver()
-        .then(() => {
-          setSolverStatus("success");
-          setSolverProgress(100);
-          setSolverMessage("Solver executado com sucesso! A grade foi gerada.");
-          // Recarregar a página após 2 segundos
-          setTimeout(() => {
-            setSolverModalOpen(false);
-            router.refresh();
-          }, 2000);
-        })
-        .catch((error) => {
-          setSolverStatus("error");
-          setSolverMessage(`Erro ao executar solver: ${error?.message ?? "Erro desconhecido"}`);
-        });
-    });
+    try {
+      // 1. Dá o comando de partida
+      await Actions.startSolver();
+      
+      // 2. Inicia o Polling (Verificação periódica)
+      const intervalId = setInterval(async () => {
+        try {
+          const statusData = await Actions.getSolverStatus();
+          
+          if (statusData.status === "COMPLETED") {
+            clearInterval(intervalId);
+            setSolverStatus("success");
+            setSolverProgress(100);
+            setSolverMessage(`Sucesso! ${statusData.scheduled ?? 0} aulas agendadas.`);
+            
+            // Atualiza a tela após 1.5s
+            setTimeout(() => {
+              setSolverModalOpen(false);
+              router.refresh(); // Puxa a grade nova do banco
+            }, 1500);
+          } else if (statusData.status === "ERROR") {
+            clearInterval(intervalId);
+            setSolverStatus("error");
+            setSolverMessage("Ocorreu um erro interno no algoritmo.");
+          } else {
+            // Ainda rodando... incrementa a barra fake para dar feedback visual
+            setSolverProgress((prev) => Math.min(prev + 5, 90));
+          }
+        } catch (err) {
+          console.error("Erro ao verificar status:", err);
+        }
+      }, 1000); // Checa a cada 1 segundo
+
+    } catch (error: any) {
+      setSolverStatus("error");
+      setSolverMessage(`Erro de conexão: ${error?.message ?? "Erro desconhecido"}`);
+    }
   };
 
   // Função para exportar a grade como PDF
