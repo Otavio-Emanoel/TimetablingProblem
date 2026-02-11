@@ -140,27 +140,109 @@ async function main() {
     process.stdout.write(` [${diaString.substring(0,3)}]`);
   }
 
-  // 4. DEMANDAS
+  // 4. DEMANDAS (todas as 11 turmas)
   console.log("\n\n--- 4. Demandas ---");
   const demandas = [
-    // 1MDS
+    // ===== INTEGRAL: 8 slots/dia × 5 dias = 40 slots =====
+
+    // 1MAD (INTEGRAL) - 1º ano Administração
+    { t: "1MAD", m: "MAT", p: "LUIZ F", q: 4 },
+    { t: "1MAD", m: "POR", p: "EVELISE", q: 4 },
+    { t: "1MAD", m: "ING", p: "PATRICIA", q: 2 },
+    { t: "1MAD", m: "GEO", p: "JUANITA", q: 2 },
+    { t: "1MAD", m: "HIS", p: "MEIRE", q: 2 },
+    { t: "1MAD", m: "BIO", p: "ANDREIA", q: 2 },
+    { t: "1MAD", m: "GEST EMP", p: "WELLINGTON", q: 4 },
+    { t: "1MAD", m: "CONT", p: "ELISANGELA", q: 4 },
+    { t: "1MAD", m: "EF", p: "VERIDIANE", q: 2 },
+    { t: "1MAD", m: "FI", p: "IURY", q: 2 },
+
+    // 2MAD (INTEGRAL) - 2º ano Administração
+    { t: "2MAD", m: "MAT", p: "LUIZ F", q: 4 },
+    { t: "2MAD", m: "POR", p: "EVELISE", q: 4 },
+    { t: "2MAD", m: "FIS", p: "GISBERT", q: 2 },
+    { t: "2MAD", m: "QUI", p: "ELZA", q: 2 },
+    { t: "2MAD", m: "HIS", p: "MEIRE", q: 2 },
+    { t: "2MAD", m: "MKT", p: "WELLINGTON", q: 4 },
+    { t: "2MAD", m: "RH", p: "ELISANGELA", q: 4 },
+    { t: "2MAD", m: "EF", p: "VERIDIANE", q: 2 },
+    { t: "2MAD", m: "SOCIO", p: "JUANITA", q: 2 },
+
+    // 3MAD (INTEGRAL) - 3º ano Administração
+    { t: "3MAD", m: "MAT", p: "LUIZ F", q: 4 },
+    { t: "3MAD", m: "POR", p: "EVELISE", q: 2 },
+    { t: "3MAD", m: "FIS", p: "GISBERT", q: 2 },
+    { t: "3MAD", m: "QUI", p: "ELZA", q: 2 },
+    { t: "3MAD", m: "FILO", p: "JUANITA", q: 2 },
+    { t: "3MAD", m: "PLAN EST", p: "WELLINGTON", q: 4 },
+    { t: "3MAD", m: "LOGIST", p: "ELISANGELA", q: 4 },
+    { t: "3MAD", m: "TCC", p: "ADRIANA", q: 4 },
+
+    // 1MDS (INTEGRAL) - 1º ano Desenvolvimento de Sistemas
     { t: "1MDS", m: "EAMT", p: ["ELZA", "ELIAMAR"], q: 4 },
     { t: "1MDS", m: "FI", p: "IURY", q: 2 },
     { t: "1MDS", m: "ING", p: "PATRICIA", q: 2 },
     { t: "1MDS", m: "LPC", p: "FABIO P", q: 4 },
     { t: "1MDS", m: "EACNT", p: ["ANDREIA", "ELZA"], q: 4 },
     { t: "1MDS", m: "PW III", p: "PAULO", q: 4 },
-    // 3JOD
-    { t: "3JOD", m: "FILO", p: "JUANITA", q: 2 },
-    { t: "3JOD", m: "MAT", p: "LUIZ F", q: 4 },
-    { t: "3JOD", m: "TDDGA III", p: "CARLOS C", q: 4 },
-    { t: "3JOD", m: "ANI 3D", p: "CARLOS C", q: 4 },
-    // 1JOD
-    { t: "1JOD", m: "TDDGA I", p: ["CARLOS C", "FERNANDA"], q: 4 },
-    { t: "1JOD", m: "MAT", p: "LUIZ F", q: 4 },
-    // 1MDI
+
+    // 2MDS (INTEGRAL) - 2º ano Desenvolvimento de Sistemas
+    { t: "2MDS", m: "MAT", p: "LUIZ F", q: 4 },
+    { t: "2MDS", m: "BD", p: "FABIO P", q: 4 },
+    { t: "2MDS", m: "PW II", p: "PAULO", q: 4 },
+    { t: "2MDS", m: "QUI", p: "ELZA", q: 2 },
+    { t: "2MDS", m: "ING", p: "PATRICIA", q: 2 },
+    { t: "2MDS", m: "EF", p: "VERIDIANE", q: 2 },
+    { t: "2MDS", m: "HIS", p: "MEIRE", q: 2 },
+
+    // 3MDS (INTEGRAL) - 3º ano Desenvolvimento de Sistemas
+    { t: "3MDS", m: "PW III", p: "PAULO", q: 4 },
+    { t: "3MDS", m: "MOBILE", p: "FABIO P", q: 4 },
+    { t: "3MDS", m: "TCC", p: "RODRIGO", q: 4 },
+    { t: "3MDS", m: "FIS", p: "GISBERT", q: 2 },
+    { t: "3MDS", m: "POR", p: "EVELISE", q: 2 },
+    { t: "3MDS", m: "FILO", p: "JUANITA", q: 2 },
+    { t: "3MDS", m: "SOCIO", p: "MEIRE", q: 2 },
+
+    // 1MDI (INTEGRAL) - 1º ano Design de Interiores
     { t: "1MDI", m: "ERGO", p: ["CAROLINE", "GABRIELA"], q: 4 },
     { t: "1MDI", m: "ROPI I", p: "SONIA", q: 4 },
+    { t: "1MDI", m: "MAT", p: "VALDECI", q: 4 },
+    { t: "1MDI", m: "POR", p: "TAMARA", q: 2 },
+    { t: "1MDI", m: "ING", p: "PATRICIA", q: 2 },
+    { t: "1MDI", m: "EF", p: "VERIDIANE", q: 2 },
+    { t: "1MDI", m: "BIO", p: "ANDREIA", q: 2 },
+
+    // 2MDI (INTEGRAL) - 2º ano Design de Interiores
+    { t: "2MDI", m: "ROPI II", p: "SONIA", q: 4 },
+    { t: "2MDI", m: "DESIGN", p: ["CAROLINE", "GABRIELA"], q: 4 },
+    { t: "2MDI", m: "MAT", p: "VALDECI", q: 4 },
+    { t: "2MDI", m: "FIS", p: "GISBERT", q: 2 },
+    { t: "2MDI", m: "QUI", p: "ELIAMAR", q: 2 },
+    { t: "2MDI", m: "POR", p: "TAMARA", q: 2 },
+    { t: "2MDI", m: "SOCIO", p: "JUANITA", q: 2 },
+
+    // ===== REGULAR: 6 slots/dia × 5 dias = 30 slots =====
+
+    // 1JOD (REGULAR) - 1º ano Jogos Digitais
+    { t: "1JOD", m: "TDDGA I", p: ["CARLOS C", "FERNANDA"], q: 4 },
+    { t: "1JOD", m: "MAT", p: "VALDECI", q: 4 },
+    { t: "1JOD", m: "POR", p: "TAMARA", q: 2 },
+    { t: "1JOD", m: "ING", p: "PATRICIA", q: 2 },
+    { t: "1JOD", m: "FI", p: "IURY", q: 2 },
+
+    // 2JOD (REGULAR) - 2º ano Jogos Digitais
+    { t: "2JOD", m: "TDDGA II", p: "CARLOS C", q: 4 },
+    { t: "2JOD", m: "MAT", p: "VALDECI", q: 4 },
+    { t: "2JOD", m: "POR", p: "TAMARA", q: 2 },
+    { t: "2JOD", m: "FIS", p: "GISBERT", q: 2 },
+    { t: "2JOD", m: "EF", p: "VERIDIANE", q: 2 },
+
+    // 3JOD (REGULAR) - 3º ano Jogos Digitais
+    { t: "3JOD", m: "FILO", p: "JUANITA", q: 2 },
+    { t: "3JOD", m: "MAT", p: "VALDECI", q: 4 },
+    { t: "3JOD", m: "TDDGA III", p: "CARLOS C", q: 4 },
+    { t: "3JOD", m: "ANI 3D", p: "CARLOS C", q: 4 },
   ];
 
   for (const d of demandas) {

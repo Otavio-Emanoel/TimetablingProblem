@@ -57,3 +57,10 @@ export type GradeEntry = {
   subject: string;
   professors: string[];
 };
+
+export type ClassGradeData = {
+  id: number;
+  name: string;
+  shiftType: string;
+  entries: GradeEntry[];
+};

@@ -193,13 +193,24 @@ export async function deleteDemand(formData: FormData) {
 export async function startSolver() {
   const response = await fetch(`${apiBase}/api/solver/iniciar`, {
     method: "POST",
-    cache: "no-store", // Importante para não cachear
+    cache: "no-store",
   });
 
   if (!response.ok) {
     throw new Error(`Erro ao iniciar solver: ${response.status}`);
   }
-  // Não fazemos revalidatePath aqui pois o processo ainda não acabou
+}
+
+export async function validateSolver() {
+  const response = await fetch(`${apiBase}/api/solver/validar`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return { feasible: false, totalLessons: 0, totalSlots: 0, errors: ["Erro ao validar"], warnings: [] };
+  }
+
+  return response.json();
 }
 
 export async function getSolverStatus() {
@@ -221,6 +232,18 @@ export async function fetchGradeForClass(classGroupId: number) {
 
   if (!response.ok) {
     return [];
+  }
+
+  return response.json();
+}
+
+export async function fetchAllGrades(): Promise<Record<string, { id: number; name: string; shiftType: string; entries: Array<{ dayOfWeek: number; startTime: string; endTime: string; subject: string; professors: string[] }> }>> {
+  const response = await fetch(`${apiBase}/api/grade/todas`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return {};
   }
 
   return response.json();

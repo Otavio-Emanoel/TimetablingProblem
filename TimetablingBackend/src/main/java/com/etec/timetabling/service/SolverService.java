@@ -383,21 +383,63 @@ public class SolverService {
             Timeslot slot,
             SchedulingUnit unit,
             Map<String, Integer> subjectDayCount,
-            Map<String, Integer> classGroupDayCount) {
+            Map<String, Integer> classGroupDayCount,
+            Map<Long, List<TimeBlock>> professorBlocks,
+            Map<Long, List<TimeBlock>> classGroupBlocks) {
 
         int score = 0;
         int day = slot.getDayOfWeek();
         long cgId = unit.classGroup.getId();
         long subjId = unit.demand.getSubject().getId();
 
+        // HARD-ISH: Mesma materia no mesmo dia - penalidade forte
         String subjDayKey = cgId + "-" + subjId + "-" + day;
         int existingSubjectOnDay = subjectDayCount.getOrDefault(subjDayKey, 0);
-        score -= existingSubjectOnDay * 200;
+        score -= existingSubjectOnDay * 300;
 
+        // SOFT: Balancear aulas da turma entre os dias (distribuicao uniforme)
         String cgDayKey = cgId + "-" + day;
         int totalOnDay = classGroupDayCount.getOrDefault(cgDayKey, 0);
-        score -= totalOnDay * 40;
+        score -= totalOnDay * 50;
 
+        // SOFT: Minimizar "janelas" (buracos) na grade da turma
+        // Bonus se o slot é adjacente a uma aula ja existente da turma neste dia
+        List<TimeBlock> cgDayBlocks = classGroupBlocks.getOrDefault(cgId, List.of())
+                .stream().filter(b -> b.dayOfWeek() == day).toList();
+        if (!cgDayBlocks.isEmpty()) {
+            boolean isAdjacent = cgDayBlocks.stream().anyMatch(b ->
+                    b.endTime().equals(slot.getStartTime()) || b.startTime().equals(slot.getEndTime()));
+            if (isAdjacent) {
+                score += 60; // Bonus por adjacência - evita buracos
+            }
+        }
+
+        // SOFT: Compactar agenda do professor (menos dias trabalhados)
+        for (Professor prof : unit.professors) {
+            List<TimeBlock> profBlocks = professorBlocks.getOrDefault(prof.getId(), List.of());
+
+            // Bonus se prof ja tem aula neste dia (compacta em menos dias)
+            boolean profHasClassOnDay = profBlocks.stream().anyMatch(b -> b.dayOfWeek() == day);
+            if (profHasClassOnDay) {
+                score += 30;
+            }
+
+            // Bonus se é adjacente a uma aula existente do prof no mesmo dia
+            boolean profAdjacent = profBlocks.stream()
+                    .filter(b -> b.dayOfWeek() == day)
+                    .anyMatch(b -> b.endTime().equals(slot.getStartTime()) || b.startTime().equals(slot.getEndTime()));
+            if (profAdjacent) {
+                score += 40; // Minimiza janelas do professor
+            }
+
+            // Penalidade: evitar professor com muitas aulas em um unico dia
+            long profCountOnDay = profBlocks.stream().filter(b -> b.dayOfWeek() == day).count();
+            if (profCountOnDay >= 6) {
+                score -= 80; // Professor sobrecarregado
+            }
+        }
+
+        // SOFT: Preferir horários mais cedo (previsibilidade)
         int minuteOfDay = slot.getStartTime().getHour() * 60 + slot.getStartTime().getMinute();
         score -= minuteOfDay / 30;
 
@@ -423,7 +465,8 @@ public class SolverService {
                 continue;
             }
 
-            int score = scoreSlot(slot, unit, subjectDayCount, classGroupDayCount);
+            int score = scoreSlot(slot, unit, subjectDayCount, classGroupDayCount,
+                    professorBlocks, classGroupBlocks);
             if (score > bestScore) {
                 bestScore = score;
                 bestSlot = slot;
@@ -463,8 +506,10 @@ public class SolverService {
                 continue;
             }
 
-            int score = scoreSlot(pair.first, unit, subjectDayCount, classGroupDayCount)
-                    + scoreSlot(pair.second, unit, subjectDayCount, classGroupDayCount)
+            int score = scoreSlot(pair.first, unit, subjectDayCount, classGroupDayCount,
+                            professorBlocks, classGroupBlocks)
+                    + scoreSlot(pair.second, unit, subjectDayCount, classGroupDayCount,
+                            professorBlocks, classGroupBlocks)
                     + 50;
 
             if (score > bestScore) {

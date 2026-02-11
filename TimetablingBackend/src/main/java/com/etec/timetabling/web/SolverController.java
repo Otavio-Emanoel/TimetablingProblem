@@ -1,11 +1,20 @@
 package com.etec.timetabling.web;
 
+import com.etec.timetabling.domain.ClassGroup;
+import com.etec.timetabling.domain.Demand;
+import com.etec.timetabling.domain.ShiftType;
+import com.etec.timetabling.domain.Timeslot;
 import com.etec.timetabling.service.SolverService;
+import com.etec.timetabling.repository.DemandRepository;
 import com.etec.timetabling.repository.ScheduleEntryRepository;
+import com.etec.timetabling.repository.TimeslotRepository;
 import com.etec.timetabling.domain.ScheduleEntry;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -25,15 +34,117 @@ public class SolverController {
 
     private final SolverService solverService;
     private final ScheduleEntryRepository scheduleEntryRepository;
+    private final DemandRepository demandRepository;
+    private final TimeslotRepository timeslotRepository;
 
     private final AtomicReference<String> status = new AtomicReference<>("IDLE");
     private final AtomicReference<SolverService.SolverResult> lastResult = new AtomicReference<>(null);
     private final AtomicReference<String> errorMessage = new AtomicReference<>(null);
 
-    public SolverController(SolverService solverService, ScheduleEntryRepository scheduleEntryRepository) {
+    public SolverController(SolverService solverService,
+                            ScheduleEntryRepository scheduleEntryRepository,
+                            DemandRepository demandRepository,
+                            TimeslotRepository timeslotRepository) {
         this.solverService = solverService;
         this.scheduleEntryRepository = scheduleEntryRepository;
+        this.demandRepository = demandRepository;
+        this.timeslotRepository = timeslotRepository;
     }
+
+    @GetMapping("/validar")
+    public ValidationResponse validate() {
+        List<Demand> demands = demandRepository.findAll();
+        List<Timeslot> timeslots = timeslotRepository.findAll();
+        List<String> warnings = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+
+        if (demands.isEmpty()) {
+            errors.add("Nenhuma demanda cadastrada. Cadastre demandas antes de rodar o solver.");
+            return new ValidationResponse(false, 0, 0, errors, warnings);
+        }
+        if (timeslots.isEmpty()) {
+            errors.add("Nenhum timeslot cadastrado. Cadastre horários antes de rodar.");
+            return new ValidationResponse(false, 0, 0, errors, warnings);
+        }
+
+        // Total de aulas necessárias
+        int totalLessons = demands.stream().mapToInt(Demand::getQuantityPerWeek).sum();
+
+        // Slots disponíveis por turno
+        Map<ShiftType, Long> slotsByShift = timeslots.stream()
+                .collect(Collectors.groupingBy(Timeslot::getShiftType, Collectors.counting()));
+
+        // Agrupar demandas por turma (ClassGroup)
+        Map<Long, List<Demand>> demandsByClassGroup = new HashMap<>();
+        Map<Long, String> classGroupNames = new HashMap<>();
+        Map<Long, ShiftType> classGroupShifts = new HashMap<>();
+        for (Demand d : demands) {
+            d.getProfessors().size(); // force-init lazy collection
+            ClassGroup cg = d.getSubject().getClassGroup();
+            demandsByClassGroup.computeIfAbsent(cg.getId(), k -> new ArrayList<>()).add(d);
+            classGroupNames.put(cg.getId(), cg.getName());
+            classGroupShifts.put(cg.getId(), cg.getShiftType());
+        }
+
+        boolean feasible = true;
+        int classGroupsWithDemands = demandsByClassGroup.size();
+
+        for (var entry : demandsByClassGroup.entrySet()) {
+            Long cgId = entry.getKey();
+            String cgName = classGroupNames.get(cgId);
+            ShiftType shift = classGroupShifts.get(cgId);
+            int needed = entry.getValue().stream().mapToInt(Demand::getQuantityPerWeek).sum();
+            long available = slotsByShift.getOrDefault(shift, 0L);
+
+            if (needed > available) {
+                errors.add(String.format(
+                        "Turma %s: %d aulas necessárias, mas apenas %d slots %s disponíveis.",
+                        cgName, needed, available, shift));
+                feasible = false;
+            } else {
+                double usage = (double) needed / available * 100;
+                if (usage > 80) {
+                    warnings.add(String.format(
+                            "Turma %s: %.0f%% de ocupação (%d/%d slots %s).",
+                            cgName, usage, needed, available, shift));
+                }
+            }
+        }
+
+        // Turmas sem demandas
+        long totalClassGroups = 11; // approximate
+        try {
+            totalClassGroups = demands.stream()
+                    .map(d -> d.getSubject().getClassGroup().getId())
+                    .distinct().count();
+        } catch (Exception ignored) {}
+
+        if (classGroupsWithDemands < totalClassGroups) {
+            // This is informational, not an error
+        }
+
+        // Checar professores sem demanda
+        long demandsWithoutProf = demands.stream()
+                .filter(d -> d.getProfessors().isEmpty()).count();
+        if (demandsWithoutProf > 0) {
+            warnings.add(String.format("%d demanda(s) sem professor(es) atribuído(s).", demandsWithoutProf));
+        }
+
+        // Info geral
+        warnings.add(0, String.format("%d turmas com demandas, %d aulas totais.",
+                classGroupsWithDemands, totalLessons));
+
+        return new ValidationResponse(
+                feasible, totalLessons, timeslots.size(), errors, warnings);
+    }
+
+    public record ValidationResponse(
+        boolean feasible,
+        int totalLessons,
+        int totalSlots,
+        List<String> errors,
+        List<String> warnings
+    ) {}
 
     @PostMapping("/iniciar")
     public SolverStatusResponse start() {

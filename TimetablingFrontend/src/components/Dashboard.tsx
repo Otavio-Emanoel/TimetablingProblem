@@ -28,6 +28,7 @@ import {
   Unavailability,
   SummaryResponse,
   GradeEntry,
+  ClassGradeData,
 } from "@/types";
 
 // --- SUB-COMPONENTS ---
@@ -155,6 +156,10 @@ export default function Dashboard({ data }: DashboardProps) {
   const [gradeEntries, setGradeEntries] = useState<GradeEntry[]>(data.initialGrade);
   const [gradeLoading, setGradeLoading] = useState(false);
 
+  // Estado para todas as grades
+  const [allGradesData, setAllGradesData] = useState<Record<string, ClassGradeData>>({});
+  const [allGradesLoading, setAllGradesLoading] = useState(false);
+
   // Refs para os formulários
   const professorFormRef = useRef<HTMLFormElement>(null);
   const classFormRef = useRef<HTMLFormElement>(null);
@@ -237,14 +242,38 @@ export default function Dashboard({ data }: DashboardProps) {
     });
   };
 
-  // Handler para executar o solver com Polling
+  // Handler para executar o solver com validação prévia e polling
   const handleRunSolver = async () => {
     setSolverModalOpen(true);
     setSolverStatus("running");
-    setSolverProgress(10);
-    setSolverMessage("Iniciando motor de otimização...");
+    setSolverProgress(5);
+    setSolverMessage("Validando dados...");
 
     try {
+      // Etapa 1: Validação pré-solver
+      const validation = await Actions.validateSolver();
+
+      if (validation.errors && validation.errors.length > 0) {
+        setSolverStatus("error");
+        setSolverMessage(
+          `❌ Problemas encontrados:\n${validation.errors.join("\n")}`
+        );
+        return;
+      }
+
+      if (validation.warnings && validation.warnings.length > 0) {
+        setSolverMessage(
+          `⚠️ Avisos: ${validation.warnings.join(" | ")}\nIniciando solver com ${validation.totalLessons} aulas...`
+        );
+      } else {
+        setSolverMessage(
+          `Validação OK (${validation.totalLessons} aulas, ${validation.totalSlots} slots). Iniciando solver...`
+        );
+      }
+
+      setSolverProgress(15);
+
+      // Etapa 2: Iniciar o solver
       await Actions.startSolver();
       
       const intervalId = setInterval(async () => {
@@ -256,7 +285,7 @@ export default function Dashboard({ data }: DashboardProps) {
             setSolverStatus("success");
             setSolverProgress(100);
             const msg = statusData.details
-              ? statusData.details.split("\n")[0]
+              ? statusData.details
               : `Sucesso! ${statusData.scheduled ?? 0} aulas agendadas.`;
             setSolverMessage(msg);
             
@@ -1289,12 +1318,15 @@ export default function Dashboard({ data }: DashboardProps) {
       {/* SOLVER MODAL */}
       {solverModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className={`px-6 py-4 border-b border-slate-100 ${
+              solverStatus === "error" ? "bg-red-50" :
+              solverStatus === "success" ? "bg-green-50" : "bg-slate-50"
+            }`}>
               <h3 className="font-semibold text-lg text-slate-800">
-                {solverStatus === "running" ? "Gerando Grade..." : 
-                 solverStatus === "success" ? "Sucesso!" :
-                 "Erro"}
+                {solverStatus === "running" ? "⏳ Gerando Grade..." : 
+                 solverStatus === "success" ? "✅ Grade Gerada com Sucesso!" :
+                 "❌ Erro no Solver"}
               </h3>
             </div>
             <div className="p-6 space-y-6">
@@ -1315,7 +1347,9 @@ export default function Dashboard({ data }: DashboardProps) {
               </div>
               
               <div className="space-y-2">
-                <p className="text-slate-700 text-center font-medium">{solverMessage}</p>
+                <div className="text-slate-700 text-sm font-medium whitespace-pre-line text-center">
+                  {solverMessage}
+                </div>
                 {solverStatus === "running" && (
                   <div className="w-full bg-slate-200 rounded-full h-2">
                     <div 
@@ -1329,9 +1363,13 @@ export default function Dashboard({ data }: DashboardProps) {
               {solverStatus !== "running" && (
                 <button
                   onClick={() => setSolverModalOpen(false)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold transition-colors"
+                  className={`w-full py-2 rounded-lg font-bold transition-colors text-white ${
+                    solverStatus === "success"
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-red-600 hover:bg-red-700"
+                  }`}
                 >
-                  {solverStatus === "success" ? "Fechar" : "Fechar"}
+                  Fechar
                 </button>
               )}
             </div>
