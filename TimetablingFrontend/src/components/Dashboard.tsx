@@ -336,15 +336,45 @@ export default function Dashboard({ data }: DashboardProps) {
 
   // Copia estilos computados do DOM original para o clone (evita funções CSS não suportadas como lab())
   const copyComputedStylesToClone = (originalRoot: HTMLElement, clonedRoot: HTMLElement) => {
+    const sanitizeValue = (prop: string, value: string) => {
+      const lower = value.toLowerCase();
+      const hasUnsupportedColor =
+        lower.includes("lab(") ||
+        lower.includes("lch(") ||
+        lower.includes("oklch(") ||
+        lower.includes("color(");
+
+      if (!hasUnsupportedColor) return value;
+
+      if (prop.includes("box-shadow") || prop.includes("text-shadow")) {
+        return "none";
+      }
+
+      if (prop.includes("background")) return "#ffffff";
+      if (prop.includes("border")) return "#e2e8f0";
+      if (prop.includes("color")) return "#0f172a";
+      if (prop.includes("fill") || prop.includes("stroke")) return "#0f172a";
+
+      return "";
+    };
+
     try {
+      // Remover folhas de estilo no clone para evitar recomputar cores com lab()
+      const head = clonedRoot.ownerDocument?.head;
+      if (head) {
+        head.querySelectorAll("style, link[rel='stylesheet']").forEach((node) => node.remove());
+      }
+
       // copia para o próprio root
       const rootStyle = window.getComputedStyle(originalRoot);
       for (let i = 0; i < rootStyle.length; i++) {
         const prop = rootStyle[i];
         const val = rootStyle.getPropertyValue(prop);
         const prio = rootStyle.getPropertyPriority(prop);
+        const sanitized = sanitizeValue(prop, val);
+        if (!sanitized) continue;
         try {
-          clonedRoot.style.setProperty(prop, val, prio);
+          clonedRoot.style.setProperty(prop, sanitized, prio);
         } catch {}
       }
 
@@ -360,21 +390,12 @@ export default function Dashboard({ data }: DashboardProps) {
           const prop = cs[j];
           const val = cs.getPropertyValue(prop);
           const prio = cs.getPropertyPriority(prop);
+          const sanitized = sanitizeValue(prop, val);
+          if (!sanitized) continue;
           try {
-            c.style.setProperty(prop, val, prio);
+            c.style.setProperty(prop, sanitized, prio);
           } catch {}
         }
-      }
-
-      // Remover styles que contêm 'lab(' no clone para evitar erro de parser
-      const head = clonedRoot.ownerDocument?.head;
-      if (head) {
-        const styleNodes = Array.from(head.querySelectorAll("style"));
-        styleNodes.forEach((s) => {
-          if (s.textContent && s.textContent.includes("lab(")) {
-            s.remove();
-          }
-        });
       }
     } catch (err) {
       // falhar silenciosamente — não bloquear export
