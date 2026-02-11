@@ -189,6 +189,26 @@ export default function Dashboard({ data }: DashboardProps) {
     loadGrade(selectedClassGroupId);
   }, [selectedClassGroupId, loadGrade]);
 
+  // Função para carregar todas as grades
+  const loadAllGrades = useCallback(async () => {
+    setAllGradesLoading(true);
+    try {
+      const result = await Actions.fetchAllGrades();
+      setAllGradesData(result);
+    } catch {
+      setAllGradesData({});
+    } finally {
+      setAllGradesLoading(false);
+    }
+  }, []);
+
+  // Carregar todas as grades quando abrir a aba
+  useEffect(() => {
+    if (activeTab === "allGrades") {
+      loadAllGrades();
+    }
+  }, [activeTab, loadAllGrades]);
+
   const openModal = (type: string) => {
     setModalType(type);
     setModalOpen(true);
@@ -416,6 +436,7 @@ export default function Dashboard({ data }: DashboardProps) {
             { id: "timeslots", label: "Horários", icon: Clock },
             { id: "restrictions", label: "Restrições", icon: ShieldAlert },
             { id: "grade", label: "Grade Final", icon: Calendar },
+            { id: "allGrades", label: "Todas as Grades", icon: GraduationCap },
           ].map((item) => (
             <button
               key={item.id}
