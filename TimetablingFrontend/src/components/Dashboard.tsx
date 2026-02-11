@@ -334,6 +334,55 @@ export default function Dashboard({ data }: DashboardProps) {
     }
   };
 
+  // Copia estilos computados do DOM original para o clone (evita funções CSS não suportadas como lab())
+  const copyComputedStylesToClone = (originalRoot: HTMLElement, clonedRoot: HTMLElement) => {
+    try {
+      // copia para o próprio root
+      const rootStyle = window.getComputedStyle(originalRoot);
+      for (let i = 0; i < rootStyle.length; i++) {
+        const prop = rootStyle[i];
+        const val = rootStyle.getPropertyValue(prop);
+        const prio = rootStyle.getPropertyPriority(prop);
+        try {
+          clonedRoot.style.setProperty(prop, val, prio);
+        } catch {}
+      }
+
+      const originals = Array.from(originalRoot.querySelectorAll<HTMLElement>("*"));
+      const clones = Array.from(clonedRoot.querySelectorAll<HTMLElement>("*"));
+
+      const len = Math.min(originals.length, clones.length);
+      for (let idx = 0; idx < len; idx++) {
+        const o = originals[idx];
+        const c = clones[idx];
+        const cs = window.getComputedStyle(o);
+        for (let j = 0; j < cs.length; j++) {
+          const prop = cs[j];
+          const val = cs.getPropertyValue(prop);
+          const prio = cs.getPropertyPriority(prop);
+          try {
+            c.style.setProperty(prop, val, prio);
+          } catch {}
+        }
+      }
+
+      // Remover styles que contêm 'lab(' no clone para evitar erro de parser
+      const head = clonedRoot.ownerDocument?.head;
+      if (head) {
+        const styleNodes = Array.from(head.querySelectorAll("style"));
+        styleNodes.forEach((s) => {
+          if (s.textContent && s.textContent.includes("lab(")) {
+            s.remove();
+          }
+        });
+      }
+    } catch (err) {
+      // falhar silenciosamente — não bloquear export
+      // eslint-disable-next-line no-console
+      console.warn("copyComputedStylesToClone falhou:", err);
+    }
+  };
+
   // Função para exportar a grade como PDF
   const exportGradePDF = async () => {
     const gradeTable = document.getElementById("grade-table");
@@ -347,6 +396,14 @@ export default function Dashboard({ data }: DashboardProps) {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
+        onclone: (clonedDoc) => {
+          try {
+            const cloned = clonedDoc.getElementById("grade-table");
+            if (cloned) copyComputedStylesToClone(gradeTable, cloned);
+          } catch (err) {
+            // não bloquear export
+          }
+        },
       });
       
       const imgData = canvas.toDataURL("image/png");
@@ -1005,6 +1062,14 @@ export default function Dashboard({ data }: DashboardProps) {
                         scale: 2,
                         useCORS: true,
                         backgroundColor: "#ffffff",
+                        onclone: (clonedDoc) => {
+                          try {
+                            const cloned = clonedDoc.getElementById("all-grades-container");
+                            if (cloned) copyComputedStylesToClone(container, cloned);
+                          } catch (err) {
+                            // ignore
+                          }
+                        },
                       });
                       const imgData = canvas.toDataURL("image/png");
                       const pdf = new jsPDF({
