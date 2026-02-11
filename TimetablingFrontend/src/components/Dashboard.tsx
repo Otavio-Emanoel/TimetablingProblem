@@ -989,6 +989,186 @@ export default function Dashboard({ data }: DashboardProps) {
             )}
           </div>
         )}
+
+        {/* TODAS AS GRADES TAB */}
+        {activeTab === "allGrades" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
+              <h2 className="text-2xl font-bold text-slate-800">Todas as Grades</h2>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={async () => {
+                    const container = document.getElementById("all-grades-container");
+                    if (!container) return;
+                    try {
+                      const canvas = await html2canvas(container, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: "#ffffff",
+                      });
+                      const imgData = canvas.toDataURL("image/png");
+                      const pdf = new jsPDF({
+                        orientation: "landscape",
+                        unit: "mm",
+                        format: "a4",
+                      });
+                      const pageWidth = 290;
+                      const pageHeight = 200;
+                      const imgWidth = pageWidth;
+                      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                      
+                      if (imgHeight <= pageHeight) {
+                        pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+                      } else {
+                        // Split across pages
+                        let yOffset = 0;
+                        while (yOffset < imgHeight) {
+                          if (yOffset > 0) pdf.addPage();
+                          pdf.addImage(imgData, "PNG", 10, 10 - yOffset, imgWidth, imgHeight);
+                          yOffset += pageHeight;
+                        }
+                      }
+                      pdf.save("todas-as-grades.pdf");
+                    } catch (err) {
+                      console.error("Erro ao exportar PDF:", err);
+                    }
+                  }}
+                  disabled={allGradesLoading || Object.keys(allGradesData).length === 0}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <Download size={16} /> Exportar PDF
+                </button>
+                <button
+                  onClick={loadAllGrades}
+                  disabled={allGradesLoading}
+                  className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {allGradesLoading ? <Loader size={16} className="animate-spin" /> : null}
+                  Atualizar
+                </button>
+              </div>
+            </div>
+
+            {allGradesLoading ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 flex items-center justify-center gap-2">
+                <Loader className="animate-spin" size={20} />
+                Carregando todas as grades...
+              </div>
+            ) : Object.keys(allGradesData).length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
+                Nenhuma grade gerada. Rode o solver primeiro.
+              </div>
+            ) : (
+              <div id="all-grades-container" className="space-y-8">
+                {Object.entries(allGradesData).map(([className, classData]) => {
+                  const classShift = classData.shiftType;
+                  const classTimeslots = data.timeslots
+                    .filter((slot) => slot.shiftType === classShift)
+                    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                  const classTimeRows = Array.from(
+                    new Map(
+                      classTimeslots.map((slot) => {
+                        const key = `${normalizeTime(slot.startTime)}-${normalizeTime(slot.endTime)}`;
+                        return [
+                          key,
+                          {
+                            startTime: normalizeTime(slot.startTime),
+                            endTime: normalizeTime(slot.endTime),
+                          },
+                        ];
+                      })
+                    ).values()
+                  );
+
+                  const classGradeMap = new Map<string, GradeEntry>();
+                  classData.entries.forEach((entry) => {
+                    const key = `${entry.dayOfWeek}-${normalizeTime(entry.startTime)}-${normalizeTime(entry.endTime)}`;
+                    classGradeMap.set(key, entry);
+                  });
+
+                  const shiftColors: Record<string, string> = {
+                    INTEGRAL: "from-indigo-600 to-blue-600",
+                    REGULAR: "from-emerald-600 to-teal-600",
+                  };
+
+                  const cellColors: Record<string, { bg: string; border: string; text: string; subText: string }> = {
+                    INTEGRAL: { bg: "bg-indigo-50", border: "border-indigo-100", text: "text-indigo-800", subText: "text-indigo-600" },
+                    REGULAR: { bg: "bg-emerald-50", border: "border-emerald-100", text: "text-emerald-800", subText: "text-emerald-600" },
+                  };
+
+                  const colors = cellColors[classShift] ?? cellColors.REGULAR;
+
+                  return (
+                    <div key={classData.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                      <div className={`bg-linear-to-r ${shiftColors[classShift] ?? shiftColors.REGULAR} px-6 py-3 flex items-center justify-between`}>
+                        <h3 className="text-lg font-bold text-white">{className}</h3>
+                        <span className="text-xs font-medium text-white/80 bg-white/20 px-3 py-1 rounded-full">
+                          {classShift === "INTEGRAL" ? "Integral" : "Regular"} • {classData.entries.length} aulas
+                        </span>
+                      </div>
+                      {classTimeRows.length === 0 ? (
+                        <div className="p-6 text-center text-slate-400 text-sm">
+                          Sem horários cadastrados para o turno {classShift}.
+                        </div>
+                      ) : classData.entries.length === 0 ? (
+                        <div className="p-6 text-center text-slate-400 text-sm">
+                          Nenhuma aula alocada para esta turma.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                              <tr>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-32">
+                                  Horário
+                                </th>
+                                {["Segunda", "Terça", "Quarta", "Quinta", "Sexta"].map((day) => (
+                                  <th key={day} className="px-4 py-2 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    {day}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {classTimeRows.map((row) => (
+                                <tr key={`${row.startTime}-${row.endTime}`}>
+                                  <td className="px-4 py-3 font-medium text-slate-700 text-sm whitespace-nowrap">
+                                    {row.startTime} - {row.endTime}
+                                  </td>
+                                  {[1, 2, 3, 4, 5].map((dayOfWeek) => {
+                                    const key = `${dayOfWeek}-${row.startTime}-${row.endTime}`;
+                                    const entry = classGradeMap.get(key);
+                                    return (
+                                      <td key={dayOfWeek} className="px-4 py-3 text-center border-l border-slate-100">
+                                        {entry ? (
+                                          <div className={`space-y-0.5 ${colors.bg} p-2 rounded-lg border ${colors.border}`}>
+                                            <p className={`text-xs font-bold ${colors.text}`}>
+                                              {entry.subject}
+                                            </p>
+                                            <p className={`text-[10px] ${colors.subText} font-medium`}>
+                                              {entry.professors.join(", ")}
+                                            </p>
+                                          </div>
+                                        ) : (
+                                          <span className="text-slate-300 text-xs">-</span>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* MODALS AREA */}
