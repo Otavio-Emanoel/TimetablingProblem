@@ -154,6 +154,8 @@ export default function Dashboard({ data }: DashboardProps) {
   const [solverProgress, setSolverProgress] = useState(0);
   const [solverStatus, setSolverStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [solverMessage, setSolverMessage] = useState("");
+  // Estado temporário para o formulário de Preferência
+  const [prefSelectedProfessorId, setPrefSelectedProfessorId] = useState<number | null>(null);
 
   // Estado dinâmico da grade (carregada do servidor)
   const [gradeEntries, setGradeEntries] = useState<GradeEntry[]>(data.initialGrade);
@@ -221,6 +223,7 @@ export default function Dashboard({ data }: DashboardProps) {
     setModalOpen(false);
     setModalType(null);
     // Reset all forms com delay para garantir
+    setPrefSelectedProfessorId(null);
     setTimeout(() => {
       [
         professorFormRef.current,
@@ -1653,6 +1656,10 @@ export default function Dashboard({ data }: DashboardProps) {
               name="professorId"
               required
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              onChange={(e) => {
+                const v = Number(e.target.value) || null;
+                setPrefSelectedProfessorId(v);
+              }}
             >
               <option value="">Selecione...</option>
               {data.professors.map((p) => (
@@ -1724,6 +1731,10 @@ export default function Dashboard({ data }: DashboardProps) {
             <select
               name="professorId"
               required
+              onChange={(e) => {
+                const v = Number(e.target.value) || null;
+                setPrefSelectedProfessorId(v);
+              }}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Selecione...</option>
@@ -1737,11 +1748,26 @@ export default function Dashboard({ data }: DashboardProps) {
             <select
               name="subjectId"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={!prefSelectedProfessorId}
             >
               <option value="">Qualquer matéria</option>
-              {data.subjects.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} - {s.classGroup?.name}</option>
-              ))}
+              {!prefSelectedProfessorId ? (
+                <option value="" disabled>Selecione um professor primeiro</option>
+              ) : (
+                (() => {
+                  const filtered = data.subjects.filter((s) =>
+                    data.demands.some(
+                      (d) => d.subject?.id === s.id && d.professors.some((p) => p.id === prefSelectedProfessorId)
+                    )
+                  );
+                  if (filtered.length === 0) {
+                    return <option value="" disabled>Nenhuma matéria encontrada para este professor</option>;
+                  }
+                  return filtered.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} - {s.classGroup?.name}</option>
+                  ));
+                })()
+              )}
             </select>
           </div>
           <div>
