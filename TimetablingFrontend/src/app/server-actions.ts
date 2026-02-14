@@ -332,3 +332,71 @@ export async function deleteUnavailability(formData: FormData) {
 
   revalidatePath("/");
 }
+
+// ===================== PREFERÊNCIAS =====================
+
+export async function fetchPreferences() {
+  const response = await fetch(`${apiBase}/api/preferences`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  return response.json();
+}
+
+export async function createPreference(formData: FormData) {
+  const professorId = Number(formData.get("professorId") ?? 0);
+  const subjectId = formData.get("subjectId") ? Number(formData.get("subjectId")) : null;
+  const dayOfWeek = Number(formData.get("dayOfWeek") ?? 0);
+  const startTime = String(formData.get("startTime") ?? "").trim() || null;
+  const endTime = String(formData.get("endTime") ?? "").trim() || null;
+  const weight = Number(formData.get("weight") ?? 5);
+  const type = String(formData.get("type") ?? "PREFERRED").trim();
+
+  if (!professorId) {
+    throw new Error("Professor é obrigatório");
+  }
+
+  const payload = {
+    professorId,
+    subjectId: subjectId && subjectId > 0 ? subjectId : null,
+    dayOfWeek,
+    startTime,
+    endTime,
+    weight,
+    type,
+  };
+
+  const response = await fetch(`${apiBase}/api/preferences`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Erro ao criar preferência: ${errorText}`);
+  }
+
+  revalidatePath("/");
+}
+
+export async function deletePreference(formData: FormData) {
+  const id = Number(formData.get("preferenceId") ?? 0);
+  if (!id) {
+    return;
+  }
+
+  const response = await fetch(`${apiBase}/api/preferences/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao deletar preferência: ${response.status}`);
+  }
+
+  revalidatePath("/");
+}

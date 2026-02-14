@@ -15,6 +15,7 @@ import {
   Download,
   Loader,
   ShieldAlert,
+  Star,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -29,6 +30,7 @@ import {
   SummaryResponse,
   GradeEntry,
   ClassGradeData,
+  ProfessorPreference,
 } from "@/types";
 
 // --- SUB-COMPONENTS ---
@@ -126,6 +128,7 @@ interface DashboardProps {
     demands: Demand[];
     timeslots: Timeslot[];
     unavailability: Unavailability[];
+    preferences: ProfessorPreference[];
     initialGrade: GradeEntry[];
   };
 }
@@ -513,6 +516,7 @@ export default function Dashboard({ data }: DashboardProps) {
             { id: "demands", label: "Demandas", icon: AlertCircle },
             { id: "timeslots", label: "Horários", icon: Clock },
             { id: "restrictions", label: "Restrições", icon: ShieldAlert },
+            { id: "preferences", label: "Preferências", icon: Star },
             { id: "grade", label: "Grade Final", icon: Calendar },
             { id: "allGrades", label: "Todas as Grades", icon: GraduationCap },
           ].map((item) => (
@@ -940,6 +944,109 @@ export default function Dashboard({ data }: DashboardProps) {
                               }
                             >
                               <input type="hidden" name="unavailabilityId" value={u.id} />
+                              <button
+                                type="submit"
+                                className="text-red-400 hover:text-red-600 transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </form>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* PREFERÊNCIAS TAB */}
+        {activeTab === "preferences" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-slate-800">
+                Preferências de Professores
+              </h2>
+              <ActionButton
+                onClick={() => openModal("createPreference")}
+                label="Nova Preferência"
+                icon={Plus}
+              />
+            </div>
+            <p className="text-slate-500 text-sm">
+              Defina preferências de horário para professores. Use <strong>PREFERIDO</strong> para indicar horários desejados
+              e <strong>EVITAR</strong> para horários indesejados. O peso (1-10) controla a importância — o solver tentará
+              respeitar preferências de maior peso primeiro.
+            </p>
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <table className="w-full">
+                <TableHeader cols={["Professor", "Matéria", "Dia", "Horário", "Peso", "Tipo"]} />
+                <tbody className="divide-y divide-slate-100">
+                  {data.preferences.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
+                        Nenhuma preferência cadastrada.
+                      </td>
+                    </tr>
+                  ) : (
+                    data.preferences.map((pref) => {
+                      const profName = pref.professorName
+                        ?? data.professors.find((p) => p.id === pref.professorId)?.name
+                        ?? `Prof #${pref.professorId}`;
+                      const subjName = pref.subjectName ?? (pref.subjectId
+                        ? data.subjects.find((s) => s.id === pref.subjectId)?.name ?? `Matéria #${pref.subjectId}`
+                        : "Qualquer");
+                      const dayName = pref.dayOfWeek === 0
+                        ? "Qualquer dia"
+                        : dayLabels[pref.dayOfWeek] ?? `Dia ${pref.dayOfWeek}`;
+                      const timeStr = pref.startTime && pref.endTime
+                        ? `${pref.startTime.substring(0, 5)} - ${pref.endTime.substring(0, 5)}`
+                        : "Qualquer horário";
+                      return (
+                        <tr key={pref.id} className="hover:bg-slate-50">
+                          <td className="px-6 py-4 font-medium text-slate-800">
+                            {profName}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600 text-sm">
+                            {subjName}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {dayName}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-600 text-sm">
+                            {timeStr}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                              pref.weight >= 8 ? "bg-orange-100 text-orange-800" :
+                              pref.weight >= 5 ? "bg-yellow-100 text-yellow-800" :
+                              "bg-slate-100 text-slate-600"
+                            }`}>
+                              {pref.weight}/10
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              pref.type === "PREFERRED"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}>
+                              {pref.type === "PREFERRED" ? "Preferido" : "Evitar"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <form
+                              action={(formData) =>
+                                startTransition(() => {
+                                  void Actions.deletePreference(formData).then(() => router.refresh());
+                                })
+                              }
+                            >
+                              <input type="hidden" name="preferenceId" value={pref.id} />
                               <button
                                 type="submit"
                                 className="text-red-400 hover:text-red-600 transition-colors"
@@ -1598,6 +1705,119 @@ export default function Dashboard({ data }: DashboardProps) {
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2 rounded-lg font-bold transition-colors"
           >
             {isPending ? "Salvando..." : "Criar Restrição"}
+          </button>
+        </form>
+      </Modal>
+
+      {/* Nova Preferência Modal */}
+      <Modal
+        isOpen={isModalOpen && modalType === "createPreference"}
+        onClose={closeModal}
+        title="Nova Preferência de Professor"
+      >
+        <form
+          onSubmit={(e) => handleFormSubmit(e, Actions.createPreference)}
+          className="flex flex-col gap-4"
+        >
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Professor *</label>
+            <select
+              name="professorId"
+              required
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Selecione...</option>
+              {data.professors.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Matéria (opcional)</label>
+            <select
+              name="subjectId"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Qualquer matéria</option>
+              {data.subjects.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} - {s.classGroup?.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Dia da Semana</label>
+            <select
+              name="dayOfWeek"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              defaultValue="0"
+            >
+              <option value="0">Qualquer dia</option>
+              <option value="1">Segunda-feira</option>
+              <option value="2">Terça-feira</option>
+              <option value="3">Quarta-feira</option>
+              <option value="4">Quinta-feira</option>
+              <option value="5">Sexta-feira</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Início (opcional)</label>
+              <input
+                type="time"
+                name="startTime"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Fim (opcional)</label>
+              <input
+                type="time"
+                name="endTime"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Peso (1 = fraco, 10 = forte)
+            </label>
+            <input
+              type="range"
+              name="weight"
+              min="1"
+              max="10"
+              defaultValue="5"
+              className="w-full"
+              onChange={(e) => {
+                const label = e.target.nextElementSibling;
+                if (label) label.textContent = e.target.value;
+              }}
+            />
+            <span className="text-sm text-slate-500 font-bold">5</span>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="type" value="PREFERRED" defaultChecked />
+                <span className="text-green-700 font-medium">Preferido</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="type" value="AVOID" />
+                <span className="text-red-700 font-medium">Evitar</span>
+              </label>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400">
+            Exemplo: Professor Maria prefere dar aula de Matemática nas segundas, 08:00-12:00, peso 8.
+            Isso não é uma restrição absoluta — o solver irá <em>tentar</em> atender a preferência.
+          </p>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2 rounded-lg font-bold transition-colors"
+          >
+            {isPending ? "Salvando..." : "Criar Preferência"}
           </button>
         </form>
       </Modal>

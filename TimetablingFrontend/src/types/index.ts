@@ -64,3 +64,16 @@ export type ClassGradeData = {
   shiftType: string;
   entries: GradeEntry[];
 };
+
+export type ProfessorPreference = {
+  id: number;
+  professorId: number;
+  professorName: string;
+  subjectId: number | null;
+  subjectName: string | null;
+  dayOfWeek: number;
+  startTime: string | null;
+  endTime: string | null;
+  weight: number;
+  type: "PREFERRED" | "AVOID";
+};

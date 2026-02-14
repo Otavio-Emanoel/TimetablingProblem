@@ -7,6 +7,7 @@ import {
   Timeslot,
   Unavailability,
   GradeEntry,
+  ProfessorPreference,
 } from "@/types";
 
 const API_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -29,5 +30,6 @@ export const api = {
   getDemands: () => fetchAPI<Demand[]>("demands"),
   getTimeslots: () => fetchAPI<Timeslot[]>("timeslots"),
   getUnavailability: () => fetchAPI<Unavailability[]>("unavailability"),
+  getPreferences: () => fetchAPI<ProfessorPreference[]>("preferences"),
   getGrade: (classId: number) => fetchAPI<GradeEntry[]>(`grade/${classId}`),
 };

@@ -9,7 +9,7 @@ export default async function Home({
   const params = await searchParams;
 
   // Fetching em paralelo para melhor performance
-  const [summary, professors, classGroups, subjects, demands, timeslots, unavailability] =
+  const [summary, professors, classGroups, subjects, demands, timeslots, unavailability, preferences] =
     await Promise.all([
       api.getSummary().catch(() => ({
         timeslots: 0,
@@ -24,6 +24,7 @@ export default async function Home({
       api.getDemands().catch(() => []),
       api.getTimeslots().catch(() => []),
       api.getUnavailability().catch(() => []),
+      api.getPreferences().catch(() => []),
     ]);
 
   // Lógica específica para a grade da turma selecionada
@@ -46,6 +47,7 @@ export default async function Home({
         demands,
         timeslots,
         unavailability,
+        preferences,
         initialGrade,
       }}
     />
