@@ -1,0 +1,315 @@
+professores:
+[
+    Andreia
+    Caroline
+    Danilo
+    Eliamar
+    Elisangela
+    Elizabeth
+    Elza
+    Evelise
+    Felix
+    Fidelis
+    Gabriela
+    Gilvan
+    Gisbert
+    Iury
+    Jean
+    Jose A
+    Joyce
+    Luiz F
+    Marcelo
+    Marcio
+    Meire
+    Patricia
+    Paulo
+    Ricardo
+    Rodrigo
+    Rogerio
+    Sonia
+    Thiago
+    Valdeci
+    Vanessa
+    Veridiane
+    Wellington
+    William B
+]
+
+Aulas Semanais - 1ª Série DS:
+[
+    Língua Portuguesa, Literatura e Comunicação Profissional: 4 aulas (160h)
+    Língua Estrangeira Moderna - Inglês: 2 aulas (80h)
+    Educação Física: 2 aulas (80h)
+    Arte: 1 aula (40h)
+    Matemática: 4 aulas (160h)
+    Biologia: 2 aulas (80h)
+    Física: 2 aulas (80h)
+    Química: 2 aulas (80h)
+    História: 2 aulas (80h)
+    Geografia: 2 aulas (80h)
+    Filosofia: 1 aula (40h)
+    Sociologia: 1 aula (40h)
+    Algoritmos e Lógica de Programação: 2 aulas (80h)
+    Fundamentos de Informática: 1 aula (40h)
+    Análise e Projeto de Sistemas: 1 aula (40h)
+    Design Digital: 1 aula (40h)
+]
+
+Aulas Semanais - 2ª Série DS:
+[
+    Língua Portuguesa: 3 aulas (120h).
+    Língua Inglesa: 2 aulas (80h).
+    Educação Física: 2 aulas (80h).
+    Matemática: 3 aulas (120h).
+    Física: 2 aulas (80h).
+    Química: 2 aulas (80h).
+    História: 2 aulas (80h).
+    Geografia: 2 aulas (80h).
+    Estudos Avançados (Ciências da Natureza): 1 aula (40h).
+    Estudos Avançados (Matemática): 1 aula (40h).
+    Laboratório de Mediação e Intervenção Sociocultural: 2 aulas (80h).
+    Programação Web II: 2 aulas (80h).
+    Banco de Dados II: 2 aulas (80h).
+    Desenvolvimento de Sistemas: 3 aulas (120h).
+    Ética e Cidadania Organizacional: 1 aula (40h).
+    Programação de Aplicativos Mobile I: 2 aulas (80h).
+]
+
+Aulas Semanais - 3ª Série DS:
+[
+    Língua Portuguesa: 3 aulas (120h).
+    Língua Inglesa: 2 aulas (80h).
+    Matemática: 4 aulas (160h).
+    Biologia: 2 aulas (80h).
+    História: 2 aulas (80h).
+    Geografia: 2 aulas (80h).
+    Filosofia: 2 aulas (80h).
+    Sociologia: 2 aulas (80h).
+    Estudos Avançados (Ciências da Natureza): 3 aulas (120h).
+    Estudos Avançados (Matemática): 3 aulas (120h).
+    Programação Web III: 2 aulas (80h).
+    Programação de Aplicativos Mobile II: 2 aulas (80h).
+    Internet, Protocolos e Segurança: 2 aulas (80h).
+    Planejamento e Desenvolvimento do TCC: 3 aulas (120h).
+    Qualidade e Teste de Software: 2 aulas (80h).
+    Sistemas Embarcados: 2 aulas (80h).
+]
+Aulas Semanais - 1ª Série JOD:
+[
+    Língua Portuguesa: 2 aulas (80h)
+    Língua Inglesa: 2 aulas (80h)
+    Arte: 2 aulas (80h)
+    Educação Física: 2 aulas (80h)
+    Matemática: 2 aulas (80h)
+    Biologia: 2 aulas (80h)
+    Física: 2 aulas (80h)
+    Química: 2 aulas (80h)
+    História: 2 aulas (80h)
+    Geografia: 2 aulas (80h)
+    Ambiente de Desenvolvimento de Jogos Digitais I: 2 aulas (80h)
+    Programação e Algoritmos: 2 aulas (80h)
+    Narrativas e Roteiros para Jogos Digitais: 2 aulas (80h)
+    Operação de Software Aplicativo: 2 aulas (80h)
+    Conduta Profissional e Relações de Trabalho: 1 aula (40h)
+    Game Art I: 2 aulas (80h)
+]
+
+Aulas Semanais - 2ª Série JOD:
+[
+    Língua Portuguesa: 3 aulas (120h)
+    Língua Inglesa: 2 aulas (80h)
+    Educação Física: 2 aulas (80h)
+    Matemática: 2 aulas (80h)
+    Física: 2 aulas (80h)
+    Química: 2 aulas (80h)
+    Biologia: 2 aulas (80h)
+    História: 2 aulas (80h)
+    Geografia: 2 aulas (80h)
+    Técnicas de Desenho e Desenvolvimento de Game Art II: 2 aulas (80h)
+    Desenvolvimento de Jogos para Web II: 2 aulas (80h)
+    Programação Orientada a Objetos: 3 aulas (120h)
+    Modelagem 3D: 2 aulas (80h)
+    Linguagem de Programação I: 2 aulas (80h)
+]
+
+Aulas Semanais - 3ª Série JOD:
+[
+    Língua Portuguesa: 4 aulas (160h)
+    Língua Inglesa: 2 aulas (80h)
+    Matemática: 4 aulas (160h)
+    Filosofia: 1 aula (40h)
+    Sociologia: 2 aulas (80h)
+    Técnicas de Desenho e Desenvolvimento de Game Art III: 2 aulas (80h)
+    Linguagem de Programação II: 3 aulas (120h)
+    Animação 3D: 3 aulas (120h)
+    Técnicas e Linguagens para Banco de Dados: 2 aulas (80h)
+    Ética e Cidadania Organizacional: 1 aula (40h)
+    Marketing para Jogos Digitais: 2 aulas (80h)
+    Programação para Dispositivos Móveis: 2 aulas (80h)
+    Planejamento e Desenvolvimento do TCC em Jogos Digitais: 2 aulas (80h)
+]
+
+Aulas Semanais - 1ª Série MAD:
+[
+    Língua Portuguesa, Literatura e Comunicação Profissional: 4 aulas (160h)
+    Língua Estrangeira Moderna - Inglês: 2 aulas (80h)
+    Arte: 2 aulas (80h)
+    Educação Física: 2 aulas (80h)
+    Matemática: 4 aulas (160h)
+    Biologia: 2 aulas (80h)
+    Física: 2 aulas (80h)
+    Química: 2 aulas (80h)
+    História: 2 aulas (80h)
+    Geografia: 2 aulas (80h)
+    Filosofia: 1 aula (40h)
+    Sociologia: 1 aula (40h)
+    Conduta Profissional e Relações de Trabalho: 1 aula (40h)
+    Projetos de Tecnologia de Informação e Comunicação: 2 aulas (80h)
+    Planejamento Empresarial: 2 aulas (80h)
+    Planejamento e Organização das Rotinas Administrativas: 2 aulas (80h)
+    Administração de Recursos Humanos: 2 aulas (80h)
+]
+
+
+Aulas Semanais - 2ª Série MAD:
+[
+    Língua Portuguesa, Literatura e Comunicação Profissional: 3 aulas (120h)
+    Língua Estrangeira Moderna - Inglês: 2 aulas (80h)
+    Educação Física: 2 aulas (80h)
+    Matemática: 3 aulas (120h)
+    Física: 2 aulas (80h)
+    Química: 2 aulas (80h)
+    Biologia: 2 aulas (80h)
+    História: 2 aulas (80h)
+    Geografia: 2 aulas (80h)
+    Filosofia: 1 aula (40h)
+    Estudos Avançados em Ciências Humanas e Sociais Aplicadas: 1 aula (40h)
+    Estudos Avançados em Matemática e suas Tecnologias: 1 aula (40h)
+    Laboratório de Mediação e Intervenção Sociocultural: 2 aulas (80h)
+    Laboratório de Processos Criativos: 2 aulas (80h)
+    Custos, Processos e Operações Contábeis: 3 aulas (120h)
+    Planejamento e Organização de Rotinas de Departamento Pessoal: 2 aulas (80h)
+    Desenvolvimento de Modelos de Negócios: 2 aulas (80h)
+    Estudos da Administração Pública: 2 aulas (80h)
+]
+
+Aulas Semanais - 3ª Série MAD:
+[
+    Língua Portuguesa e Literatura: 4 aulas (160h)
+    Língua Estrangeira Moderna - Inglês: 2 aulas (80h)
+    Matemática: 4 aulas (160h)
+    Sociologia: 2 aulas (80h)
+    Estudos Avançados em Ciencias Humanas e Sociais Aplicadas: 3 aulas (120h)
+    Estudos Avançados em Matematica e suas Tecnologias: 3 aulas (120h)
+    Administração Financeira e Orçamentária (AFO): 3 aulas (120h)
+    Administração da Produção e Serviços: 3 aulas (120h)
+    Administração de Recursos Humanos: 3 aulas (120h)
+    Estudos de Economia, Mercado e de Comercio Internacional: 2 aulas (80h)
+    Ética e Cidadania Organizacional: 1 aula (40h)
+    Processos Logisticos Empresariais: 2 aulas (80h)
+    Tecnologia da Informação em Administração: 2 aulas (80h)
+    Planejamento e Desenvolvimento do TCC (PDTCC): 3 aulas (120h)
+]
+
+Aulas Semanais - 1ª Série MDI:
+[
+    Língua Portuguesa: 2 aulas (80h)
+    Língua Estrangeira Moderna - Inglês: 2 aulas (80h)
+    Arte: 2 aulas (80h)
+    Educação Física: 2 aulas (80h)
+    Matemática: 3 aulas (120h)
+    Física: 2 aulas (80h)
+    História: 2 aulas (80h)
+    Geografia: 2 aulas (80h)
+    Filosofia: 1 aula (40h)
+    Estudos Avançados em Ciências Humanas e Sociais Aplicadas: 1 aula (40h)
+    Estudos Avançados em Linguagens e suas Tecnologias: 1 aula (40h)
+    Laboratório de Investigação Científica: 2 aulas (80h)
+    Práticas de Empreendedorismo: 2 aulas (80h)
+    Composição no Projeto de Design de Interiores: 2 aulas (80h)
+    Ergonomia: 2 aulas (80h)
+    Estudo e Aplicação dos Materiais e Revestimentos no Design de Interiores: 2 aulas (80h)
+    Projeto de Espaços Efêmeros: 2 aulas (80h)
+    Expressões Visuais Aplicadas ao Design de Interiores I: 2 aulas (80h)
+    Representação da Linguagem Projetiva e Arquitetônica I: 2 aulas (80h)
+    Representação Digital de Projetos de Interiores I: 2 aulas (80h)
+]
+
+Aulas Semanais - 2ª Série MDI:
+[
+    Língua Portuguesa: 3 aulas (120h)
+    Língua Inglesa: 2 aulas (80h)
+    Educação Física: 2 aulas (80h)
+    Matemática: 3 aulas (120h)
+    Química: 2 aulas (80h)
+    Física: 2 aulas (80h)
+    Biologia: 2 aulas (80h)
+    Geografia: 2 aulas (80h)
+    História: 2 aulas (80h)
+    Estudos Avançados em Ciências Humanas e Sociais Aplicadas: 1 aula (40h)
+    Estudos Avançados em Linguagens e suas Tecnologias: 1 aula (40h)
+    Laboratório de Mediação e Intervenção Sociocultural: 2 aulas (80h)
+    Laboratório de Processos Criativos: 2 aulas (80h)
+    Expressões Visuais Aplicadas ao Design de Interiores II: 2 aulas (80h)
+    Representação da Linguagem Projetiva e Arquitetônica II: 2 aulas (80h)
+    Representação Digital de Projetos de Interiores II: 2 aulas (80h)
+    Projetos de Interiores Residenciais: 2 aulas (80h)
+    Representação Técnica do Mobiliário II: 2 aulas (80h)
+]
+
+Aulas Semanais - 3ª Série MDI:
+[
+    Língua Portuguesa: 5 aulas (200h)
+    Língua Inglesa: 2 aulas (80h)
+    Matemática: 4 aulas (160h)
+    Química: 2 aulas (80h)
+    Biologia: 2 aulas (80h)
+    Geografia: 2 aulas (80h)
+    Sociologia: 1 aula (40h)
+    Estudos Avançados em Ciências Humanas e Sociais Aplicadas: 3 aulas (120h)
+    Estudos Avançados em Linguagens e suas Tecnologias: 3 aulas (120h)
+    Representação Técnica do Mobiliário II: 2 aulas (80h)
+    Conforto Ambiental Aplicado ao Projeto de Interiores: 1 aula (40h)
+    Ética e Cidadania Organizacional: 1 aula (40h)
+    História do Mobiliário: 2 aulas (80h)
+    Ilustração no Projeto de Interiores: 2 aulas (80h)
+    Planejamento e Desenvolvimento do Trabalho de Conclusão de Curso (TCC) em Design de Interiores: 2 aulas (80h)
+    Projetos de Interiores Comerciais: 2 aulas (80h)
+]
+
+Atribuição de Professores:
+[
+    Andreia: BIO (2MAD, 3MDS, 2MDI)
+    Caroline: ERGO (1MDI), RDPI II (2MDI), EVADI II (2MDI)
+    Danilo: EACHSA (3MAD, 3MDI), ECO (2MDS, 3MAD, 3MDI), TIA (3MAD)
+    Eliamar: FILO (1MAD, 1MDS, 1MDI), MAT (2MDS, 3MDS, 1MDI, 2JOD, 3JOD), EAMT (3MAD, 3MDS)
+    Elisangela: PDTCC (3MAD, 2MDS, 3MDS, 3MDI, 3JOD), TIA (3MAD), PTIC (1MDS, 1MDI), ADJD I (1JOD), DJW II (2JOD), TLBD (3JOD)
+    Elizabeth: LPC/LMIS (2MAD, 2MDS, 1MDI, 2MDI, 2JOD), EALT (2MDI, 3MDI), SOC (1MDS, 3MDI), FILO (3JOD)
+    Elza: EAMT (2MAD, 3MAD, 2MDS, 3MDS), EACNT (1MDS, 2MDS, 3MDS), SOC (3MDS, 3JOD), FILO (3MDS), MJD (3JOD), EACHSA (1MDS, 2MAD)
+    Evelise: HIST (1MAD, 2MAD, 1MDS, 2MDS, 1MDI, 2MDI, 1JOD, 2JOD)
+    Felix: EAMRDI (1MDI)
+    Fidelis: ING (1MAD, 1MDS), PORT/LPC (1MAD, 2MAD, 3MAD, 1MDS, 2MDS, 3MDS, 1MDI, 2MDI), LMIS (2MAD, 2MDS), LPL (1MDI, 2MDI)
+    Gabriela: RLPA I/II (1MDI, 2MDI), HM/RTMI/RTMII (2MDI, 3MDI)
+    Gilvan: ARTE (1MAD, 1MDS, 1MDI, 1JOD), GAME ART/MO 3D/ANI 3D (1JOD, 2JOD, 3JOD), TDDGA/NRID (2JOD, 1JOD)
+    Gisbert: PA (1MDS, 1JOD), PW I (1MDS), POO (2JOD), PDM (3JOD)
+    Iury: BD I/II (1MDS, 2MDS), SE/SE IoT (1MDS, 3MDS), IPSSI/QTS (3MDS)
+    Jean: PE/PORA/PORDP/APS (1MAD, 2MAD, 3MAD)
+    Jose A: QUI (1MAD, 1MDS, 2MDS, 3MDI, 1JOD, 2JOD)
+    Joyce: ERGO, RDPI II, EVADI II, RTMI, IPI (1MDI, 2MDI, 3MDI)
+    Luiz F: MAT (1MAD, 2MAD, 1MDS, 2MDI, 1JOD), FIS (1MAD, 1MDS, 2MDS, 1MDI, 2MDI, 1JOD, 2JOD)
+    Marcelo: FIS (2MAD), PIR/PIC/PEE (2MDI, 3MDI, 1MDI)
+    Marcio: CPOC, DMN, PORA, GEO (1MAD, 2MAD, 1MDI)
+    Meire: LPL, PORT, MJD, NRID (3MDI, 1JOD, 2JOD, 3JOD)
+    Patricia: BIO (1MAD, 1MDS, 2MDS, 1MDI, 3MDI, 1JOD), ING (Todas 2º/3º, 1MDI, 1JOD)
+    Paulo: PW, DS, PAM, PA, ADJD, POO, LP, DJW, PDM (1MDS, 2MDS, 3MDS, 1JOD, 2JOD, 3JOD)
+    Ricardo: AFO (3MAD)
+    Rodrigo: CPRT, EAP, EACHSA, ECO (1MAD, 2MAD, 1JOD, 3JOD)
+    Rogerio: GEO (1MAD, 1MDS, 1MDI, 3MDI)
+    Sonia: RLPA, CPDI, EVADI, PEE, PIR, RTMI, PIC, CAAPI, PDTCC (1MDI, 2MDI, 3MDI)
+    Thiago: ED. FIS (1MAD, 2MAD, 1MDS, 2MDS, 1MDI, 2MDI, 1JOD, 2JOD)
+    Valdeci: GEO (2MDS, 3MDS, 2MDI, 2JOD)
+    Vanessa: BD, DS, PW, SE, IPSSI, QTS, PTIC (1MDS, 2MDS, 3MDS, 1MDI)
+    Veridiane: ARH, PDTCC, DMN, PORDP, SOC, LPC, EEM (1MAD, 2MAD, 3MAD, 3MDS, 1MDI, 2MDI, 3JOD)
+    Wellington: PTIC, PAM, LP, OSA (1MAD, 1MDS, 2MDS, 1JOD, 3JOD)
+    William B: MAT (3MAD, 3MDS, 3MDI)
+]
