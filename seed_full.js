@@ -17,7 +17,7 @@ const TURMAS = [
   { name: "1MAD", shiftType: "INTEGRAL" }, { name: "2MAD", shiftType: "INTEGRAL" }, { name: "3MAD", shiftType: "INTEGRAL" },
   { name: "1MDS", shiftType: "INTEGRAL" }, { name: "2MDS", shiftType: "INTEGRAL" }, { name: "3MDS", shiftType: "INTEGRAL" },
   { name: "1MDI", shiftType: "INTEGRAL" }, { name: "2MDI", shiftType: "INTEGRAL" }, { name: "3MDI", shiftType: "INTEGRAL" },
-  { name: "1JOD", shiftType: "REGULAR" },  { name: "2JOD", shiftType: "REGULAR" },  { name: "3JOD", shiftType: "REGULAR" }
+  { name: "1JOD", shiftType: "REGULAR" }, { name: "2JOD", shiftType: "REGULAR" }, { name: "3JOD", shiftType: "REGULAR" }
 ];
 
 const HORARIOS_COMUNS = [
@@ -864,7 +864,8 @@ const DATA_PARSED = {
     "Paulo": [
       {
         "subjects": [
-          "PW",
+          "PW I",
+          "PW III",
           "DS",
           "PAM",
           "PA",
@@ -978,7 +979,7 @@ const DATA_PARSED = {
         "subjects": [
           "BD",
           "DS",
-          "PW",
+          "PW II",
           "SE",
           "IPSSI",
           "QTS",
@@ -1050,8 +1051,8 @@ const QUANTITIES_EXACT = DATA_PARSED["=== TURMAS AULAS ==="] || {};
 const PROF_ASSIGNMENTS = DATA_PARSED["=== PROF ASSIGNMENTS ==="] || {};
 
 if (Object.keys(QUANTITIES_EXACT).length === 0) {
-    // Fazer uma cópia de segurança se o formato anterior era diferente
-    const jsonSegments = `=== TURMAS AULAS ===
+  // Fazer uma cópia de segurança se o formato anterior era diferente
+  const jsonSegments = `=== TURMAS AULAS ===
 {
   "1ª Série DS": {
     "Língua Portuguesa, Literatura e Comunicação Profissional": 4,
@@ -1885,7 +1886,8 @@ if (Object.keys(QUANTITIES_EXACT).length === 0) {
   "Paulo": [
     {
       "subjects": [
-        "PW",
+        "PW I",
+        "PW III",
         "DS",
         "PAM",
         "PA",
@@ -1999,7 +2001,7 @@ if (Object.keys(QUANTITIES_EXACT).length === 0) {
       "subjects": [
         "BD",
         "DS",
-        "PW",
+        "PW II",
         "SE",
         "IPSSI",
         "QTS",
@@ -2066,11 +2068,11 @@ if (Object.keys(QUANTITIES_EXACT).length === 0) {
   ]
 }
 `.split('=== PROF ASSIGNMENTS ===');
-    const turmasJson = jsonSegments[0].replace('=== TURMAS AULAS ===', '');
-    const profsJson = jsonSegments[1];
-    
-    Object.assign(QUANTITIES_EXACT, JSON.parse(turmasJson));
-    Object.assign(PROF_ASSIGNMENTS, JSON.parse(profsJson));
+  const turmasJson = jsonSegments[0].replace('=== TURMAS AULAS ===', '');
+  const profsJson = jsonSegments[1];
+
+  Object.assign(QUANTITIES_EXACT, JSON.parse(turmasJson));
+  Object.assign(PROF_ASSIGNMENTS, JSON.parse(profsJson));
 }
 
 // Mapa global de apelidos
@@ -2178,30 +2180,30 @@ ALIASES["HM/RTMI/RTMII"] = [].concat(ALIASES["HM"], ALIASES["RTMI"], ALIASES["RT
 
 // Função que acha a chave original na Quantity baseada num alias
 function findRealSubjects(turmaFull, subjAlias) {
-    const qMap = QUANTITIES_EXACT[turmaFull] || {};
-    let found = [];
-    
-    // Testa busca direta primeiro (ex: "Sociologia")
-    if (qMap[subjAlias]) return [subjAlias];
-    
-    // Resolve Alias
-    const possibles = ALIASES[subjAlias] || [subjAlias];
-    for (const p of possibles) {
-        if (qMap[p]) {
-            found.push(p);
-        }
+  const qMap = QUANTITIES_EXACT[turmaFull] || {};
+  let found = [];
+
+  // Testa busca direta primeiro (ex: "Sociologia")
+  if (qMap[subjAlias]) return [subjAlias];
+
+  // Resolve Alias
+  const possibles = ALIASES[subjAlias] || [subjAlias];
+  for (const p of possibles) {
+    if (qMap[p]) {
+      found.push(p);
     }
-    
-    // Tratamentos com sufixos
-    if (found.length === 0) {
-       for (const k of Object.keys(qMap)) {
-           if (k.toUpperCase().includes(subjAlias.toUpperCase())) {
-                found.push(k);
-           }
-       }
+  }
+
+  // Tratamentos com sufixos
+  if (found.length === 0) {
+    for (const k of Object.keys(qMap)) {
+      if (k.toUpperCase().includes(subjAlias.toUpperCase())) {
+        found.push(k);
+      }
     }
-    
-    return found; // Ex: devolve ["Língua Inglesa"]
+  }
+
+  return found; // Ex: devolve ["Língua Inglesa"]
 }
 
 async function post(endpoint, data) {
@@ -2230,9 +2232,9 @@ async function main() {
     let res = await post("class-groups", t);
     if (!res) {
       const getRes = await fetch(`${API_BASE}/api/class-groups`);
-      if(getRes.ok) {
-         const list = await getRes.json();
-         res = list.find(tg => tg.name === t.name);
+      if (getRes.ok) {
+        const list = await getRes.json();
+        res = list.find(tg => tg.name === t.name);
       }
     }
     if (res) mapTurma.set(t.name, res.id);
@@ -2259,115 +2261,115 @@ async function main() {
 
   // 3. Gerar demandas e disciplinas exatamente da Matriz  
   console.log("\n\n--- 2. Preparando Matriz de Aulas ---");
-  
+
   // Primeiro, formatar a conversão TurmaCurto -> TurmaLongo (ex: 1MAD -> 1ª Série MAD)
   const codeToLong = {
-      "1MAD": "1ª Série MAD", "2MAD": "2ª Série MAD", "3MAD": "3ª Série MAD",
-      "1MDS": "1ª Série DS", "2MDS": "2ª Série DS", "3MDS": "3ª Série DS",
-      "1MDI": "1ª Série MDI", "2MDI": "2ª Série MDI", "3MDI": "3ª Série MDI",
-      "1JOD": "1ª Série JOD", "2JOD": "2ª Série JOD", "3JOD": "3ª Série JOD",
+    "1MAD": "1ª Série MAD", "2MAD": "2ª Série MAD", "3MAD": "3ª Série MAD",
+    "1MDS": "1ª Série DS", "2MDS": "2ª Série DS", "3MDS": "3ª Série DS",
+    "1MDI": "1ª Série MDI", "2MDI": "2ª Série MDI", "3MDI": "3ª Série MDI",
+    "1JOD": "1ª Série JOD", "2JOD": "2ª Série JOD", "3JOD": "3ª Série JOD",
   };
-  
+
   // Criar estrutura limpa para a API
   // structure: { "1MAD": { "História": { profs: ["Evelise", "Fidelis"], quantity: 2 } } }
   const API_Demands = {};
   for (const tCode of Object.keys(codeToLong)) {
-      API_Demands[tCode] = {};
-      const tLong = codeToLong[tCode];
-      const grades = QUANTITIES_EXACT[tLong] || {};
-      for (const subj of Object.keys(grades)) {
-          API_Demands[tCode][subj] = { profs: [], quantity: grades[subj] };
-      }
+    API_Demands[tCode] = {};
+    const tLong = codeToLong[tCode];
+    const grades = QUANTITIES_EXACT[tLong] || {};
+    for (const subj of Object.keys(grades)) {
+      API_Demands[tCode][subj] = { profs: [], quantity: grades[subj] };
+    }
   }
-  
+
   // Varre tabela de Profs -> distribui
   console.log("\n--- 3. Mapeando Designações de Professores ---");
   const todosOsProfNomes = Object.keys(PROF_ASSIGNMENTS);
   const mapProf = new Map();
-  
+
   for (const prof of todosOsProfNomes) {
-      let res = await post("professors", { name: prof });
-      if (!res) {
-          const getRes = await fetch(`${API_BASE}/api/professors`);
-          if (getRes.ok) {
-              const list = await getRes.json();
-              res = list.find(p => p.name.toUpperCase() === prof.toUpperCase());
-          }
+    let res = await post("professors", { name: prof });
+    if (!res) {
+      const getRes = await fetch(`${API_BASE}/api/professors`);
+      if (getRes.ok) {
+        const list = await getRes.json();
+        res = list.find(p => p.name.toUpperCase() === prof.toUpperCase());
       }
-      if (res) mapProf.set(prof, res.id);
-      
-      const binds = PROF_ASSIGNMENTS[prof];
-      for (const bind of binds) {
-          const subjects = bind.subjects; // ["MAT", "FILO"]
-          const turmas = bind.turmas;     // ["1MAD", "3MDS"]
-          
-          for (const t of turmas) {
-              if (!API_Demands[t]) continue;
-              const tLong = codeToLong[t];
-              
-              for (const subjAlias of subjects) {
-                  const subjsReais = findRealSubjects(tLong, subjAlias);
-                  for (const realSubject of subjsReais) {
-                      if (API_Demands[t][realSubject] && !API_Demands[t][realSubject].profs.includes(prof)) {
-                          API_Demands[t][realSubject].profs.push(prof);
-                      }
-                  }
-              }
+    }
+    if (res) mapProf.set(prof, res.id);
+
+    const binds = PROF_ASSIGNMENTS[prof];
+    for (const bind of binds) {
+      const subjects = bind.subjects; // ["MAT", "FILO"]
+      const turmas = bind.turmas;     // ["1MAD", "3MDS"]
+
+      for (const t of turmas) {
+        if (!API_Demands[t]) continue;
+        const tLong = codeToLong[t];
+
+        for (const subjAlias of subjects) {
+          const subjsReais = findRealSubjects(tLong, subjAlias);
+          for (const realSubject of subjsReais) {
+            if (API_Demands[t][realSubject] && !API_Demands[t][realSubject].profs.includes(prof)) {
+              API_Demands[t][realSubject].profs.push(prof);
+            }
           }
+        }
       }
+    }
   }
-  
+
   console.log("\n--- 4. Inserindo na Base de Dados Rest ---");
   let missing = 0;
-  
+
   for (const tCode of Object.keys(API_Demands)) {
-      const turmaId = mapTurma.get(tCode);
-      if (!turmaId) continue;
-      
-      const materiasObj = API_Demands[tCode];
-      let tCount = 0;
-      let totalSlots = 0;
-      
-      for (const realSubjectName of Object.keys(materiasObj)) {
-          const data = materiasObj[realSubjectName];
-          if (data.quantity <= 0) continue;
-          
-          totalSlots += data.quantity;
-          
-          // Se não há prof setado, avisa!
-          if (data.profs.length === 0) {
-              //console.warn(`${tCode} não tem prof pra ${realSubjectName}`);
-              missing++;
-          }
-          
-          // 1. Cria a subject
-          let subjRes = await post("subjects", { name: realSubjectName, classGroupId: turmaId });
-          if (!subjRes) {
-              const getRes = await fetch(`${API_BASE}/api/subjects`);
-              if (getRes.ok) {
-                  const list = await getRes.json();
-                  subjRes = list.find(s => s.name === realSubjectName && s.classGroup.id === turmaId);
-              }
-          }
-          if (!subjRes) continue;
-          
-          // 2. Cria demanda (atribui um prof default pro sistema aceitar criar grade incompleta e não quebrar?)
-          // Para rodar perfeito, só envia pros profs reais designados.
-          if (data.profs.length > 0) {
-              const professorIds = data.profs.map(p => mapProf.get(p)).filter(id => id);
-              await post("demands", {
-                  subjectId: subjRes.id,
-                  professorIds: professorIds,
-                  quantityPerWeek: data.quantity,
-                  allowDoubleLesson: true
-              });
-              process.stdout.write("+");
-          }
+    const turmaId = mapTurma.get(tCode);
+    if (!turmaId) continue;
+
+    const materiasObj = API_Demands[tCode];
+    let tCount = 0;
+    let totalSlots = 0;
+
+    for (const realSubjectName of Object.keys(materiasObj)) {
+      const data = materiasObj[realSubjectName];
+      if (data.quantity <= 0) continue;
+
+      totalSlots += data.quantity;
+
+      // Se não há prof setado, avisa!
+      if (data.profs.length === 0) {
+        //console.warn(`${tCode} não tem prof pra ${realSubjectName}`);
+        missing++;
       }
-      console.log(`
+
+      // 1. Cria a subject
+      let subjRes = await post("subjects", { name: realSubjectName, classGroupId: turmaId });
+      if (!subjRes) {
+        const getRes = await fetch(`${API_BASE}/api/subjects`);
+        if (getRes.ok) {
+          const list = await getRes.json();
+          subjRes = list.find(s => s.name === realSubjectName && s.classGroup.id === turmaId);
+        }
+      }
+      if (!subjRes) continue;
+
+      // 2. Cria demanda (atribui um prof default pro sistema aceitar criar grade incompleta e não quebrar?)
+      // Para rodar perfeito, só envia pros profs reais designados.
+      if (data.profs.length > 0) {
+        const professorIds = data.profs.map(p => mapProf.get(p)).filter(id => id);
+        await post("demands", {
+          subjectId: subjRes.id,
+          professorIds: professorIds,
+          quantityPerWeek: data.quantity,
+          allowDoubleLesson: true
+        });
+        process.stdout.write("+");
+      }
+    }
+    console.log(`
 [${tCode}] ${totalSlots} aulas na matriz.`);
   }
-  
+
   console.log(`
 
 ✅ FINALIZADO! Script enviou demanda idêntica à matriz oficial.`);
