@@ -132,5 +132,18 @@ Problemas comuns
 - Porta 5432 ocupada: pare qualquer serviço Postgres local ou ajuste `docker-compose.yaml`.
 - Erros de CORS: quando rodando backend e frontend separadamente, ajuste `API_BASE_URL`/`NEXT_PUBLIC_API_URL` no `.env.local` do frontend.
 
+## O Problema e a Motivação
+
+A elaboração da grade horária escolar (conhecida na computação como *Timetabling Problem*) é um desafio logístico complexo. Anteriormente, o processo de atribuição de aulas e montagem da grade para os professores era feito de forma **totalmente manual**.
+
+Realizar esse processo "no papel" ou em planilhas simples gera diversos gargalos para a coordenação pedagógica:
+- **Gasto excessivo de tempo:** Horas ou até dias são desperdiçados tentando encaixar horários e professores como em um quebra-cabeças.
+- **Dificuldade com restrições:** É extremamente difícil cruzar manualmente as restrições de indisponibilidade de cada professor (dias e horários específicos em que não podem lecionar) sem cometer erros.
+- **Desbalanceamento:** Falta de otimização na distribuição, resultando em turmas com todas as aulas de uma disciplina no mesmo dia, "janelas" (horários vagos) indesejadas ou quebra de aulas duplas.
+- **Retrabalho:** Qualquer alteração de última hora na disponibilidade de um professor exige que boa parte da grade seja refeita do zero.
+
+**Por que essa solução foi desenvolvida?**
+Este projeto foi criado para automatizar e resolver esse problema de forma inteligente. Através de um *solver* customizado construído no backend, o sistema recebe as demandas de cada turma e as restrições de cada professor, calculando a melhor distribuição possível. A solução garante o respeito às regras de negócio (balanceamento de dias, suporte a aulas duplas e bloqueio de horários indisponíveis) em questão de segundos. O painel web complementa a solução entregando uma interface amigável para a gestão visual de toda essa operação.
+
 Contato
 - Autor / repositório: Otavio-Emanoel/TimetablingProblem
