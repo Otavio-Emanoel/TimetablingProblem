@@ -36,11 +36,11 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Motor de geração de grade horária com:
  * <ul>
- *   <li>Randomização — cada execução gera uma grade diferente</li>
- *   <li>Preferências de professores (soft-constraints com peso)</li>
- *   <li>Backtracking local — tenta re-alocar quando fica preso</li>
- *   <li>Relatório detalhado de conflitos para aulas não alocadas</li>
- *   <li>Múltiplas tentativas automáticas para maximizar alocação</li>
+ * <li>Randomização — cada execução gera uma grade diferente</li>
+ * <li>Preferências de professores (soft-constraints com peso)</li>
+ * <li>Backtracking local — tenta re-alocar quando fica preso</li>
+ * <li>Relatório detalhado de conflitos para aulas não alocadas</li>
+ * <li>Múltiplas tentativas automáticas para maximizar alocação</li>
  * </ul>
  */
 @Service
@@ -49,7 +49,7 @@ public class SolverService {
     private static final Logger log = LoggerFactory.getLogger(SolverService.class);
 
     /** Número de tentativas completas que o solver faz, selecionando a melhor. */
-    private static final int MAX_ATTEMPTS = 5;
+    private static final int MAX_ATTEMPTS = 8;
 
     /** Profundidade máxima de backtracking por unidade falhada. */
     private static final int BACKTRACK_DEPTH = 3;
@@ -83,7 +83,8 @@ public class SolverService {
         }
     }
 
-    private record SlotPair(Timeslot first, Timeslot second) {}
+    private record SlotPair(Timeslot first, Timeslot second) {
+    }
 
     private static class SchedulingUnit {
         final Demand demand;
@@ -93,8 +94,8 @@ public class SolverService {
         final boolean isDouble;
 
         SchedulingUnit(Demand demand, ClassGroup classGroup,
-                       List<Professor> professors, List<Timeslot> eligibleSlots,
-                       boolean isDouble) {
+                List<Professor> professors, List<Timeslot> eligibleSlots,
+                boolean isDouble) {
             this.demand = demand;
             this.classGroup = classGroup;
             this.professors = professors;
@@ -104,16 +105,17 @@ public class SolverService {
     }
 
     /** Resultado detalhado do solver. */
-    public record SolverResult(int scheduled, int unscheduled, String details) {}
+    public record SolverResult(int scheduled, int unscheduled, String details) {
+    }
 
     /** Motivo detalhado de conflito para uma aula não alocada. */
     private record ConflictReason(
-        String subjectName,
-        String classGroupName,
-        List<String> professorNames,
-        boolean isDouble,
-        List<String> reasons
-    ) {}
+            String subjectName,
+            String classGroupName,
+            List<String> professorNames,
+            boolean isDouble,
+            List<String> reasons) {
+    }
 
     // ========================= SOLVER PRINCIPAL =========================
 
@@ -217,7 +219,10 @@ public class SolverService {
             log.info("  Tentativa {}: {} alocadas, {} não alocadas",
                     attempt, result.scheduled, result.unscheduled);
 
-            if (bestAttempt == null || result.scheduled > bestAttempt.scheduled) {
+            if (bestAttempt == null
+                    || result.scheduled > bestAttempt.scheduled
+                    || (result.scheduled == bestAttempt.scheduled
+                            && result.preferencesRespected > bestAttempt.preferencesRespected)) {
                 bestAttempt = result;
             }
 
@@ -248,6 +253,10 @@ public class SolverService {
                         String.join("; ", c.reasons));
             }
         }
+        if (bestAttempt.preferencesTotal > 0) {
+            log.info("  Preferências: {}/{} atendidas",
+                    bestAttempt.preferencesRespected, bestAttempt.preferencesTotal);
+        }
         log.info("========================================");
 
         return new SolverResult(bestAttempt.scheduled, bestAttempt.unscheduled, details);
@@ -256,14 +265,14 @@ public class SolverService {
     // ========================= TENTATIVA ÚNICA =========================
 
     private record AttemptResult(
-        int scheduled,
-        int unscheduled,
-        List<ScheduleEntry> entries,
-        Map<String, Long> perClassCount,
-        List<ConflictReason> conflicts,
-        int preferencesRespected,
-        int preferencesTotal
-    ) {}
+            int scheduled,
+            int unscheduled,
+            List<ScheduleEntry> entries,
+            Map<String, Long> perClassCount,
+            List<ConflictReason> conflicts,
+            int preferencesRespected,
+            int preferencesTotal) {
+    }
 
     private AttemptResult runSingleAttempt(
             List<SchedulingUnit> allUnits,
@@ -285,11 +294,9 @@ public class SolverService {
             group.sort(Comparator
                     .comparing((SchedulingUnit u) -> !u.isDouble) // doubles primeiro
                     .thenComparingInt(u -> u.eligibleSlots.size() + rng.nextInt(3))
-                    .thenComparing(Comparator.comparingInt((SchedulingUnit u) ->
-                            u.professors.stream()
-                                    .mapToInt(p -> profDemandPressure.getOrDefault(p.getId(), 0))
-                                    .max().orElse(0)
-                    ).reversed()));
+                    .thenComparing(Comparator.comparingInt((SchedulingUnit u) -> u.professors.stream()
+                            .mapToInt(p -> profDemandPressure.getOrDefault(p.getId(), 0))
+                            .max().orElse(0)).reversed()));
         }
 
         // Intercalar turmas (round-robin) com ordem de turmas randomizada
@@ -470,21 +477,24 @@ public class SolverService {
             }
         }
 
-        if (candidates.isEmpty()) return false;
+        if (candidates.isEmpty())
+            return false;
 
         // Embaralhar para variar tentativas
         Collections.shuffle(candidates, rng);
 
         int tried = 0;
         for (ScheduleEntry victim : candidates) {
-            if (tried >= BACKTRACK_DEPTH) break;
+            if (tried >= BACKTRACK_DEPTH)
+                break;
             tried++;
 
             Timeslot victimSlot = victim.getTimeslot();
 
             // Checar se o slot da vítima serviria para a nova unidade
             // (precisamos simular a remoção da vítima)
-            if (!unit.eligibleSlots.contains(victimSlot)) continue;
+            if (!unit.eligibleSlots.contains(victimSlot))
+                continue;
 
             // Construir unidade fictícia para a vítima
             Demand victimDemand = new Demand();
@@ -628,8 +638,7 @@ public class SolverService {
                 unit.classGroup.getName(),
                 unit.professors.stream().map(Professor::getName).toList(),
                 unit.isDouble,
-                reasons
-        );
+                reasons);
     }
 
     // ========================= CONFLICT CHECK =========================
@@ -648,18 +657,21 @@ public class SolverService {
 
         List<TimeBlock> cgBlocks = classGroupBlocks.getOrDefault(classGroupId, List.of());
         for (TimeBlock cb : cgBlocks) {
-            if (cb.overlaps(day, start, end)) return true;
+            if (cb.overlaps(day, start, end))
+                return true;
         }
 
         for (Professor prof : professors) {
             List<TimeBlock> blocks = professorBlocks.getOrDefault(prof.getId(), List.of());
             for (TimeBlock b : blocks) {
-                if (b.overlaps(day, start, end)) return true;
+                if (b.overlaps(day, start, end))
+                    return true;
             }
 
             List<TimeBlock> unavails = unavailByProf.getOrDefault(prof.getId(), List.of());
             for (TimeBlock u : unavails) {
-                if (u.overlaps(day, start, end)) return true;
+                if (u.overlaps(day, start, end))
+                    return true;
             }
         }
 
@@ -697,9 +709,8 @@ public class SolverService {
         List<TimeBlock> cgDayBlocks = classGroupBlocks.getOrDefault(cgId, List.of())
                 .stream().filter(b -> b.dayOfWeek() == day).toList();
         if (!cgDayBlocks.isEmpty()) {
-            boolean isAdjacent = cgDayBlocks.stream().anyMatch(b ->
-                    b.endTime().equals(slot.getStartTime())
-                            || b.startTime().equals(slot.getEndTime()));
+            boolean isAdjacent = cgDayBlocks.stream().anyMatch(b -> b.endTime().equals(slot.getStartTime())
+                    || b.startTime().equals(slot.getEndTime()));
             if (isAdjacent) {
                 score += 60;
             }
@@ -740,7 +751,7 @@ public class SolverService {
                         || pref.getSubject().getId().equals(subjId);
 
                 if (matchesDay && matchesTime && matchesSubject) {
-                    int bonusMagnitude = pref.getWeight() * 25; // peso 1-10 → 25-250 pontos
+                    int bonusMagnitude = pref.getWeight() * 50; // peso 1-10 → 50-500 pontos
                     if (pref.getType() == PreferenceType.PREFERRED) {
                         score += bonusMagnitude;
                     } else { // AVOID
@@ -834,7 +845,7 @@ public class SolverService {
             }
 
             int score = scoreSlot(pair.first, unit, subjectDayCount, classGroupDayCount,
-                            professorBlocks, classGroupBlocks, prefsByProf, rng)
+                    professorBlocks, classGroupBlocks, prefsByProf, rng)
                     + scoreSlot(pair.second, unit, subjectDayCount, classGroupDayCount,
                             professorBlocks, classGroupBlocks, prefsByProf, rng)
                     + 50; // Bônus por ser aula dupla
@@ -845,7 +856,8 @@ public class SolverService {
             }
         }
 
-        if (bestPair == null) return false;
+        if (bestPair == null)
+            return false;
 
         for (Timeslot slot : List.of(bestPair.first, bestPair.second)) {
             placeEntry(slot, unit, classGroupBlocks, professorBlocks,
@@ -916,11 +928,13 @@ public class SolverService {
                 slot.getDayOfWeek(), slot.getStartTime(), slot.getEndTime());
 
         List<TimeBlock> cgBlocks = classGroupBlocks.get(entry.getClassGroup().getId());
-        if (cgBlocks != null) cgBlocks.remove(block);
+        if (cgBlocks != null)
+            cgBlocks.remove(block);
 
         for (Professor prof : entry.getProfessors()) {
             List<TimeBlock> pBlocks = professorBlocks.get(prof.getId());
-            if (pBlocks != null) pBlocks.remove(block);
+            if (pBlocks != null)
+                pBlocks.remove(block);
         }
 
         String subjDayKey = entry.getClassGroup().getId() + "-"
@@ -931,7 +945,8 @@ public class SolverService {
         classGroupDayCount.merge(cgDayKey, -1, Integer::sum);
 
         Set<Long> usedSlots = usedSlotsByClass.get(entry.getClassGroup().getId());
-        if (usedSlots != null) usedSlots.remove(slot.getId());
+        if (usedSlots != null)
+            usedSlots.remove(slot.getId());
     }
 
     private void removeLastEntry(
@@ -941,7 +956,8 @@ public class SolverService {
             Map<String, Integer> subjectDayCount,
             Map<String, Integer> classGroupDayCount,
             Map<Long, Set<Long>> usedSlotsByClass) {
-        if (entries.isEmpty()) return;
+        if (entries.isEmpty())
+            return;
         ScheduleEntry last = entries.getLast();
         removeEntry(last, classGroupBlocks, professorBlocks,
                 subjectDayCount, classGroupDayCount, entries, usedSlotsByClass);
@@ -959,7 +975,8 @@ public class SolverService {
                 List<ProfessorPreference> prefs = prefsByProf.getOrDefault(
                         prof.getId(), List.of());
                 for (ProfessorPreference pref : prefs) {
-                    if (pref.getType() != PreferenceType.PREFERRED) continue;
+                    if (pref.getType() != PreferenceType.PREFERRED)
+                        continue;
                     boolean matchDay = pref.getDayOfWeek() == 0
                             || pref.getDayOfWeek() == slot.getDayOfWeek();
                     boolean matchTime = true;
