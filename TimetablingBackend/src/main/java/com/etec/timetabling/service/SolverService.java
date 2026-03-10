@@ -49,10 +49,10 @@ public class SolverService {
     private static final Logger log = LoggerFactory.getLogger(SolverService.class);
 
     /** Número de tentativas completas que o solver faz, selecionando a melhor. */
-    private static final int MAX_ATTEMPTS = 8;
+    private static final int MAX_ATTEMPTS = 25;
 
     /** Profundidade máxima de backtracking por unidade falhada. */
-    private static final int BACKTRACK_DEPTH = 3;
+    private static final int BACKTRACK_DEPTH = 20;
 
     private final DemandRepository demandRepository;
     private final ScheduleEntryRepository scheduleEntryRepository;
@@ -214,7 +214,7 @@ public class SolverService {
 
             AttemptResult result = runSingleAttempt(
                     allUnits, profDemandPressure, unavailByProf, prefsByProf,
-                    consecutivePairsByShift, rng);
+                    consecutivePairsByShift, timeslotsByShift, rng);
 
             log.info("  Tentativa {}: {} alocadas, {} não alocadas",
                     attempt, result.scheduled, result.unscheduled);
@@ -280,6 +280,7 @@ public class SolverService {
             Map<Long, List<TimeBlock>> unavailByProf,
             Map<Long, List<ProfessorPreference>> prefsByProf,
             Map<ShiftType, List<SlotPair>> consecutivePairsByShift,
+            Map<ShiftType, List<Timeslot>> timeslotsByShift,
             Random rng) {
 
         // Agrupar por turma
@@ -293,7 +294,7 @@ public class SolverService {
         for (List<SchedulingUnit> group : unitsByClass.values()) {
             group.sort(Comparator
                     .comparing((SchedulingUnit u) -> !u.isDouble) // doubles primeiro
-                    .thenComparingInt(u -> u.eligibleSlots.size() + rng.nextInt(3))
+                    .thenComparingInt(u -> countAvailableSlots(u, unavailByProf) + rng.nextInt(5))
                     .thenComparing(Comparator.comparingInt((SchedulingUnit u) -> u.professors.stream()
                             .mapToInt(p -> profDemandPressure.getOrDefault(p.getId(), 0))
                             .max().orElse(0)).reversed()));
@@ -327,6 +328,7 @@ public class SolverService {
         int unscheduled = 0;
         List<ScheduleEntry> entries = new ArrayList<>();
         List<ConflictReason> conflicts = new ArrayList<>();
+        List<SchedulingUnit> failedUnits = new ArrayList<>();
         int prefsRespected = 0;
         int prefsTotal = 0;
 
@@ -371,12 +373,16 @@ public class SolverService {
                                     unit, classGroupBlocks, professorBlocks,
                                     unavailByProf, prefsByProf,
                                     subjectDayCount, classGroupDayCount,
-                                    entries, usedSlotsByClass, rng);
+                                    entries, usedSlotsByClass, timeslotsByShift, rng);
                             if (recovered) {
                                 scheduled++;
                                 prefsTotal++;
                             } else {
                                 unscheduled++;
+                                SchedulingUnit failedSingle = new SchedulingUnit(
+                                        unit.demand, unit.classGroup, unit.professors,
+                                        unit.eligibleSlots, false);
+                                failedUnits.add(failedSingle);
                                 conflicts.add(analyzeConflict(
                                         unit, classGroupBlocks, professorBlocks,
                                         unavailByProf));
@@ -405,17 +411,63 @@ public class SolverService {
                             unit, classGroupBlocks, professorBlocks,
                             unavailByProf, prefsByProf,
                             subjectDayCount, classGroupDayCount,
-                            entries, usedSlotsByClass, rng);
+                            entries, usedSlotsByClass, timeslotsByShift, rng);
                     if (recovered) {
                         scheduled++;
                         prefsTotal++;
                     } else {
                         unscheduled++;
+                        failedUnits.add(unit);
                         conflicts.add(analyzeConflict(
                                 unit, classGroupBlocks, professorBlocks,
                                 unavailByProf));
                     }
                 }
+            }
+        }
+
+        // ========================= REPAIR PHASE =========================
+        // Após a passada greedy, tenta alocar units que falharam (estado pode ter mudado)
+        if (!failedUnits.isEmpty()) {
+            for (int repairPass = 0; repairPass < 5 && !failedUnits.isEmpty(); repairPass++) {
+                Collections.shuffle(failedUnits, rng);
+                List<SchedulingUnit> stillFailed = new ArrayList<>();
+                for (SchedulingUnit failedUnit : failedUnits) {
+                    // Tentar alocação simples (estado pode ter mudado)
+                    Timeslot slot = findBestSingleSlot(
+                            failedUnit, classGroupBlocks, professorBlocks,
+                            unavailByProf, prefsByProf,
+                            subjectDayCount, classGroupDayCount, rng);
+                    if (slot != null) {
+                        placeEntry(slot, failedUnit, classGroupBlocks, professorBlocks,
+                                subjectDayCount, classGroupDayCount, entries, usedSlotsByClass);
+                        scheduled++;
+                        unscheduled--;
+                        prefsTotal++;
+                        prefsRespected += countPreferencesMatched(
+                                entries.subList(entries.size() - 1, entries.size()), prefsByProf);
+                        continue;
+                    }
+                    // Tentar backtracking agressivo
+                    boolean recovered = tryBacktrack(
+                            failedUnit, classGroupBlocks, professorBlocks,
+                            unavailByProf, prefsByProf,
+                            subjectDayCount, classGroupDayCount,
+                            entries, usedSlotsByClass, timeslotsByShift, rng);
+                    if (recovered) {
+                        scheduled++;
+                        unscheduled--;
+                        prefsTotal++;
+                    } else {
+                        stillFailed.add(failedUnit);
+                    }
+                }
+                failedUnits = stillFailed;
+            }
+            // Atualizar lista de conflitos com os que realmente falharam
+            conflicts.clear();
+            for (SchedulingUnit failedUnit : failedUnits) {
+                conflicts.add(analyzeConflict(failedUnit, classGroupBlocks, professorBlocks, unavailByProf));
             }
         }
 
@@ -431,8 +483,12 @@ public class SolverService {
     // ========================= BACKTRACKING =========================
 
     /**
-     * Tenta desalocar uma aula de menor prioridade no mesmo
-     * conjunto de slots para abrir espaço para esta unidade.
+     * Tenta desalocar uma aula existente para abrir espaço para esta unidade.
+     * Estratégia melhorada:
+     * 1. Ao remover a vítima, tenta QUALQUER slot elegível para a unit
+     *    (não apenas o slot específico da vítima).
+     * 2. Usa os timeslots corretos do turno da VÍTIMA para realocá-la.
+     * 3. Tenta cadeia de 2 níveis: remove vítima → aloca unit → realoca vítima.
      */
     private boolean tryBacktrack(
             SchedulingUnit unit,
@@ -444,16 +500,14 @@ public class SolverService {
             Map<String, Integer> classGroupDayCount,
             List<ScheduleEntry> entries,
             Map<Long, Set<Long>> usedSlotsByClass,
+            Map<ShiftType, List<Timeslot>> timeslotsByShift,
             Random rng) {
 
-        // Procurar entradas existentes que bloqueiam os professores desta unit
-        // em timeslots elegíveis
         Long cgId = unit.classGroup.getId();
 
-        // Candidatas: entradas que ocupam um slot que a unit poderia usar
+        // Candidatas: entradas que bloqueiam a unit (mesma turma ou mesmo professor)
         List<ScheduleEntry> candidates = new ArrayList<>();
         for (ScheduleEntry entry : entries) {
-            // Verificar se esta entry bloqueia algum slot elegível da unit
             boolean blocksUnit = false;
 
             // Se a entry é da mesma turma, o slot está ocupado para a turma
@@ -491,10 +545,9 @@ public class SolverService {
 
             Timeslot victimSlot = victim.getTimeslot();
 
-            // Checar se o slot da vítima serviria para a nova unidade
-            // (precisamos simular a remoção da vítima)
-            if (!unit.eligibleSlots.contains(victimSlot))
-                continue;
+            // ★ FIX: Eligible slots CORRETOS para a vítima (baseado no turno da turma da VÍTIMA)
+            List<Timeslot> victimEligible = timeslotsByShift.getOrDefault(
+                    victim.getClassGroup().getShiftType(), List.of());
 
             // Construir unidade fictícia para a vítima
             Demand victimDemand = new Demand();
@@ -507,31 +560,24 @@ public class SolverService {
                     victimDemand,
                     victim.getClassGroup(),
                     new ArrayList<>(victim.getProfessors()),
-                    unit.eligibleSlots, // usa mesmos timeslots como pool
+                    victimEligible,
                     false);
 
             // Remover temporariamente a vítima
             removeEntry(victim, classGroupBlocks, professorBlocks,
                     subjectDayCount, classGroupDayCount, entries, usedSlotsByClass);
 
-            // Verificar se agora o slot funciona para a nova unit
-            boolean canPlaceUnit = !hasConflict(victimSlot, unit.professors, cgId,
-                    classGroupBlocks, professorBlocks, unavailByProf);
+            // ★ FIX: Tentar encontrar QUALQUER slot para a unit (não apenas o da vítima)
+            Timeslot slotForUnit = findBestSingleSlot(
+                    unit, classGroupBlocks, professorBlocks,
+                    unavailByProf, prefsByProf,
+                    subjectDayCount, classGroupDayCount, rng);
 
-            if (canPlaceUnit) {
-                placeEntry(victimSlot, unit, classGroupBlocks, professorBlocks,
+            if (slotForUnit != null) {
+                placeEntry(slotForUnit, unit, classGroupBlocks, professorBlocks,
                         subjectDayCount, classGroupDayCount, entries, usedSlotsByClass);
 
                 // Tentar realocar a vítima em outro slot
-                // Atualizar eligible slots da vítima para o shift correto
-                List<Timeslot> victimEligible = unit.eligibleSlots; // mesmo shift/turma
-                victimUnit = new SchedulingUnit(
-                        victimDemand,
-                        victim.getClassGroup(),
-                        new ArrayList<>(victim.getProfessors()),
-                        victimEligible,
-                        false);
-
                 Timeslot newSlotForVictim = findBestSingleSlot(
                         victimUnit, classGroupBlocks, professorBlocks,
                         unavailByProf, prefsByProf,
@@ -550,7 +596,7 @@ public class SolverService {
                             subjectDayCount, classGroupDayCount, entries, usedSlotsByClass);
                 }
             } else {
-                // Não deu certo — re-inserir vítima
+                // Não conseguiu alocar — re-inserir vítima
                 placeEntry(victimSlot, victimUnit, classGroupBlocks, professorBlocks,
                         subjectDayCount, classGroupDayCount, entries, usedSlotsByClass);
             }
@@ -766,7 +812,7 @@ public class SolverService {
         score -= minuteOfDay / 30;
 
         // ★ JITTER ALEATÓRIO ★ — garante grades diferentes a cada execução
-        score += rng.nextInt(21) - 10; // -10 a +10 aleatório
+        score += rng.nextInt(61) - 30; // -30 a +30 aleatório
 
         return score;
     }
@@ -991,6 +1037,30 @@ public class SolverService {
                     }
                 }
             }
+        }
+        return count;
+    }
+
+    /**
+     * Conta quantos slots elegíveis estão realmente disponíveis
+     * (sem conflito de indisponibilidade) para uma unidade.
+     * Usado para MRV (Minimum Remaining Values) na ordenação.
+     */
+    private int countAvailableSlots(SchedulingUnit unit, Map<Long, List<TimeBlock>> unavailByProf) {
+        int count = 0;
+        for (Timeslot s : unit.eligibleSlots) {
+            boolean blocked = false;
+            for (Professor p : unit.professors) {
+                List<TimeBlock> unavails = unavailByProf.getOrDefault(p.getId(), List.of());
+                for (TimeBlock u : unavails) {
+                    if (u.overlaps(s.getDayOfWeek(), s.getStartTime(), s.getEndTime())) {
+                        blocked = true;
+                        break;
+                    }
+                }
+                if (blocked) break;
+            }
+            if (!blocked) count++;
         }
         return count;
     }
