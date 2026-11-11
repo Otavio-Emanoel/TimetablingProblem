@@ -222,13 +222,16 @@ public class SolverService {
             if (bestAttempt == null
                     || result.scheduled > bestAttempt.scheduled
                     || (result.scheduled == bestAttempt.scheduled
-                            && result.preferencesRespected > bestAttempt.preferencesRespected)) {
+                            && result.preferencesRespected > bestAttempt.preferencesRespected)
+                    || (result.scheduled == bestAttempt.scheduled
+                            && result.preferencesRespected == bestAttempt.preferencesRespected
+                            && result.totalWindows < bestAttempt.totalWindows)) {
                 bestAttempt = result;
             }
 
-            // Se alocou tudo, não precisa tentar mais
-            if (result.unscheduled == 0) {
-                log.info("  Tentativa {} perfeita! Parando.", attempt);
+            // Se alocou tudo sem nenhuma janela ociosa, ou após 8 tentativas completas sem pendências, para
+            if (result.unscheduled == 0 && (result.totalWindows == 0 || attempt >= 8)) {
+                log.info("  Tentativa {} otimizada ({} janelas)! Parando.", attempt, bestAttempt.totalWindows);
                 break;
             }
         }
@@ -271,7 +274,8 @@ public class SolverService {
             Map<String, Long> perClassCount,
             List<ConflictReason> conflicts,
             int preferencesRespected,
-            int preferencesTotal) {
+            int preferencesTotal,
+            int totalWindows) {
     }
 
     private AttemptResult runSingleAttempt(
@@ -480,8 +484,33 @@ public class SolverService {
                 .collect(Collectors.groupingBy(
                         e -> e.getClassGroup().getName(), Collectors.counting()));
 
+        int totalWindows = calculateTotalProfessorWindows(professorBlocks);
+
         return new AttemptResult(scheduled, unscheduled, entries,
-                perClassCount, conflicts, prefsRespected, prefsTotal);
+                perClassCount, conflicts, prefsRespected, prefsTotal, totalWindows);
+    }
+
+    private int calculateTotalProfessorWindows(Map<Long, List<TimeBlock>> professorBlocks) {
+        int windows = 0;
+        for (List<TimeBlock> blocks : professorBlocks.values()) {
+            Map<Integer, List<TimeBlock>> byDay = new HashMap<>();
+            for (TimeBlock b : blocks) {
+                byDay.computeIfAbsent(b.dayOfWeek(), k -> new ArrayList<>()).add(b);
+            }
+            for (List<TimeBlock> dayList : byDay.values()) {
+                if (dayList.size() <= 1) continue;
+                dayList.sort(Comparator.comparing(TimeBlock::startTime));
+                for (int i = 0; i < dayList.size() - 1; i++) {
+                    LocalTime endCurrent = dayList.get(i).endTime();
+                    LocalTime startNext = dayList.get(i + 1).startTime();
+                    long gapMinutes = java.time.Duration.between(endCurrent, startNext).toMinutes();
+                    if (gapMinutes >= 45 && !(endCurrent.equals(LocalTime.of(12, 30)) && startNext.equals(LocalTime.of(13, 30)))) {
+                        windows += (int) (gapMinutes / 50);
+                    }
+                }
+            }
+        }
+        return windows;
     }
 
     // ========================= BACKTRACKING =========================
@@ -774,25 +803,42 @@ public class SolverService {
             }
         }
 
-        // SOFT: Compactar agenda do professor
+        // SOFT: Compactar agenda do professor e minimizar janelas ociosas no mesmo dia
         for (Professor prof : unit.professors) {
             List<TimeBlock> profBlocks = professorBlocks.getOrDefault(prof.getId(), List.of());
-
-            boolean profHasClassOnDay = profBlocks.stream().anyMatch(b -> b.dayOfWeek() == day);
-            if (profHasClassOnDay) {
-                score += 30;
-            }
-
-            boolean profAdjacent = profBlocks.stream()
+            List<TimeBlock> profDayBlocks = profBlocks.stream()
                     .filter(b -> b.dayOfWeek() == day)
-                    .anyMatch(b -> b.endTime().equals(slot.getStartTime())
-                            || b.startTime().equals(slot.getEndTime()));
-            if (profAdjacent) {
-                score += 40;
+                    .toList();
+
+            if (!profDayBlocks.isEmpty()) {
+                score += 25;
+
+                // Distância mínima até outra aula do professor no mesmo dia
+                long minGapMinutes = Long.MAX_VALUE;
+                for (TimeBlock b : profDayBlocks) {
+                    long gap;
+                    if (!b.endTime().isAfter(slot.getStartTime())) {
+                        gap = java.time.Duration.between(b.endTime(), slot.getStartTime()).toMinutes();
+                    } else if (!slot.getEndTime().isAfter(b.startTime())) {
+                        gap = java.time.Duration.between(slot.getEndTime(), b.startTime()).toMinutes();
+                    } else {
+                        gap = 0;
+                    }
+                    if (gap < minGapMinutes) {
+                        minGapMinutes = gap;
+                    }
+                }
+
+                // Adjacente direto ou separado apenas pelo intervalo de 20 min (09:40-10:00)
+                if (minGapMinutes <= 20) {
+                    score += 75;
+                } else if (minGapMinutes >= 45) {
+                    // Penalizar criação de janelas ociosas no mesmo dia
+                    score -= (int) Math.min(180, (minGapMinutes / 50) * 45);
+                }
             }
 
-            long profCountOnDay = profBlocks.stream().filter(b -> b.dayOfWeek() == day).count();
-            if (profCountOnDay >= 6) {
+            if (profDayBlocks.size() >= 6) {
                 score -= 80;
             }
 
