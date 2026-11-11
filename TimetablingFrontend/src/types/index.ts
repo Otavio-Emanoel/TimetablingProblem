@@ -6,6 +6,8 @@ export type SummaryResponse = {
   lessons: number;
   demands?: number;
   scheduleEntries?: number;
+  unavailabilities?: number;
+  preferences?: number;
 };
 
 export type Professor = {
@@ -63,6 +65,22 @@ export type ClassGradeData = {
   name: string;
   shiftType: string;
   entries: GradeEntry[];
+};
+
+export type ProfessorGradeEntry = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  classGroup: string;
+  shiftType: string;
+  professors: string[];
+};
+
+export type ProfessorGradeData = {
+  id: number;
+  name: string;
+  entries: ProfessorGradeEntry[];
 };
 
 export type ProfessorPreference = {

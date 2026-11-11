@@ -10,10 +10,17 @@ import {
   ProfessorPreference,
 } from "@/types";
 
-const API_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+export function getApiBaseUrl(): string {
+  return (
+    process.env.API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:8080"
+  );
+}
 
 async function fetchAPI<T>(endpoint: string): Promise<T> {
-  const res = await fetch(`${API_URL}/api/${endpoint}`, {
+  const apiUrl = getApiBaseUrl();
+  const res = await fetch(`${apiUrl}/api/${endpoint}`, {
     cache: "no-store",
   });
   if (!res.ok) {
