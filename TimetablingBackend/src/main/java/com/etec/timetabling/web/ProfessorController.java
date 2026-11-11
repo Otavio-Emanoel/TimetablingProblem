@@ -10,6 +10,7 @@ import com.etec.timetabling.repository.ProfessorUnavailabilityRepository;
 import com.etec.timetabling.repository.ScheduleEntryRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -123,7 +124,7 @@ public class ProfessorController {
     }
 
     public record ProfessorRequest(
-        @NotBlank String name
+        @NotBlank @Size(min = 1, max = 120) String name
     ) {
     }
 }

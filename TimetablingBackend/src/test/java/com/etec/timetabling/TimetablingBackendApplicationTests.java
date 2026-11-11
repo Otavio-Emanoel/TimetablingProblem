@@ -242,4 +242,130 @@ class TimetablingBackendApplicationTests {
         assertThat(summaryController.summary().classGroups()).isZero();
         assertThat(summaryController.summary().subjects()).isZero();
     }
+
+    @Test
+    void securityAndValidationRulesRejectInvalidAndDuplicatePayloads() {
+        Professor prof = professorController.create(new ProfessorController.ProfessorRequest("Prof. Seguranca"));
+
+        // Duplicidade em indisponibilidade deve retornar 409 CONFLICT
+        unavailabilityController.create(new ProfessorUnavailabilityController.UnavailabilityRequest(
+            prof.getId(), 2, LocalTime.of(8, 0), LocalTime.of(9, 40)));
+        try {
+            unavailabilityController.create(new ProfessorUnavailabilityController.UnavailabilityRequest(
+                prof.getId(), 2, LocalTime.of(8, 0), LocalTime.of(9, 40)));
+            org.junit.jupiter.api.Assertions.fail("Deveria lancar 409 CONFLICT para indisponibilidade duplicada");
+        } catch (ResponseStatusException ex) {
+            assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        }
+
+        // Preferência com horário invertido ou formato inválido deve retornar 400
+        var badPref1 = preferenceController.create(new ProfessorPreferenceController.PreferenceRequest(
+            prof.getId(), null, 2, "12:00", "08:00", 5, "PREFERRED"));
+        assertThat(badPref1.getStatusCode().value()).isEqualTo(400);
+
+        var badPref2 = preferenceController.create(new ProfessorPreferenceController.PreferenceRequest(
+            prof.getId(), null, 2, "horario-invalido", "10:00", 5, "PREFERRED"));
+        assertThat(badPref2.getStatusCode().value()).isEqualTo(400);
+
+        // Duplicidade em preferência deve retornar 409 CONFLICT
+        var validPref = preferenceController.create(new ProfessorPreferenceController.PreferenceRequest(
+            prof.getId(), null, 3, "08:00", "10:00", 8, "PREFERRED"));
+        assertThat(validPref.getStatusCode().value()).isEqualTo(201);
+
+        var dupPref = preferenceController.create(new ProfessorPreferenceController.PreferenceRequest(
+            prof.getId(), null, 3, "08:00", "10:00", 8, "PREFERRED"));
+        assertThat(dupPref.getStatusCode().value()).isEqualTo(409);
+    }
+
+    @Test
+    void gradeAuditAndManualMoveOrSwapWorkWithConflictProtection() {
+        timeslotController.createDefaultEtecSchedule();
+        Professor prof1 = professorController.create(new ProfessorController.ProfessorRequest("Prof. Alfa"));
+        Professor prof2 = professorController.create(new ProfessorController.ProfessorRequest("Prof. Beta"));
+        ClassGroup cg = classGroupController.create(new ClassGroupController.ClassGroupRequest("1MAD", ShiftType.INTEGRAL));
+
+        Subject subMat = subjectController.create(new SubjectController.SubjectRequest("Matemática", cg.getId()));
+        Subject subPor = subjectController.create(new SubjectController.SubjectRequest("Português", cg.getId()));
+
+        demandController.create(new DemandController.DemandRequest(subMat.getId(), Set.of(prof1.getId()), 2, false));
+        demandController.create(new DemandController.DemandRequest(subPor.getId(), Set.of(prof2.getId()), 2, false));
+
+        // Bloquear Prof. Alfa na sexta-feira (dia 5) das 15:10 às 16:00
+        unavailabilityController.create(new ProfessorUnavailabilityController.UnavailabilityRequest(
+            prof1.getId(), 5, LocalTime.of(15, 10), LocalTime.of(16, 0)));
+
+        solverService.solve();
+
+        var audit = gradeController.auditGrades();
+        assertThat(audit.totalDemandedLessons()).isEqualTo(4);
+        assertThat(audit.totalScheduledLessons()).isEqualTo(4);
+        assertThat(audit.missingDemands()).isEmpty();
+        assertThat(audit.professorConflicts()).isEmpty();
+        assertThat(audit.unavailabilityViolations()).isEmpty();
+        assertThat(audit.qualityScore()).isGreaterThanOrEqualTo(80);
+        assertThat(audit.professorStats()).hasSize(2);
+
+        // Encontrar uma aula de Matemática (Prof. Alfa)
+        var entries = gradeController.list(cg.getId());
+        var matEntry = entries.stream().filter(e -> e.subject().equals("Matemática")).findFirst().orElseThrow();
+        var porEntry = entries.stream().filter(e -> e.subject().equals("Português")).findFirst().orElseThrow();
+
+        // Tentar mover aula de Prof. Alfa para sexta-feira 15:10 (onde ele tem indisponibilidade) sem force -> 409 CONFLICT
+        try {
+            gradeController.moveOrSwapEntry(new GradeController.MoveGradeEntryRequest(
+                cg.getId(),
+                matEntry.dayOfWeek(),
+                LocalTime.parse(matEntry.startTime()),
+                5,
+                LocalTime.of(15, 10),
+                false
+            ));
+            org.junit.jupiter.api.Assertions.fail("Deveria bloquear movimentacao para horario indisponivel");
+        } catch (ResponseStatusException ex) {
+            assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        }
+
+        // Trocar (swap) a aula de Matemática com a aula de Português
+        var swapRes = gradeController.moveOrSwapEntry(new GradeController.MoveGradeEntryRequest(
+            cg.getId(),
+            matEntry.dayOfWeek(),
+            LocalTime.parse(matEntry.startTime()),
+            porEntry.dayOfWeek(),
+            LocalTime.parse(porEntry.startTime()),
+            false
+        ));
+        assertThat(swapRes.swapped()).isTrue();
+    }
+
+    @Test
+    void backupExportAndImportRestoresCompleteState() {
+        timeslotController.createDefaultEtecSchedule();
+        Professor prof = professorController.create(new ProfessorController.ProfessorRequest("Prof. Backup"));
+        ClassGroup cg = classGroupController.create(new ClassGroupController.ClassGroupRequest("3MDS", ShiftType.INTEGRAL));
+        Subject subj = subjectController.create(new SubjectController.SubjectRequest(" Seguranca da Informacao", cg.getId()));
+        demandController.create(new DemandController.DemandRequest(subj.getId(), Set.of(prof.getId()), 2, true));
+        unavailabilityController.create(new ProfessorUnavailabilityController.UnavailabilityRequest(
+            prof.getId(), 1, LocalTime.of(8, 0), LocalTime.of(8, 50)));
+        preferenceController.create(new ProfessorPreferenceController.PreferenceRequest(
+            prof.getId(), subj.getId(), 4, "10:00", "11:40", 9, "PREFERRED"));
+        solverService.solve();
+
+        var exported = summaryController.exportBackup();
+        assertThat(exported.professors()).containsExactly("Prof. Backup");
+        assertThat(exported.scheduleEntries()).hasSize(2);
+
+        summaryController.resetAll();
+        assertThat(summaryController.summary().professors()).isZero();
+        assertThat(summaryController.summary().scheduleEntries()).isZero();
+
+        var restoredSummary = summaryController.importBackup(exported);
+        assertThat(restoredSummary.professors()).isEqualTo(1);
+        assertThat(restoredSummary.classGroups()).isEqualTo(1);
+        assertThat(restoredSummary.timeslots()).isEqualTo(70);
+        assertThat(restoredSummary.subjects()).isEqualTo(1);
+        assertThat(restoredSummary.demands()).isEqualTo(1);
+        assertThat(restoredSummary.unavailabilities()).isEqualTo(1);
+        assertThat(restoredSummary.preferences()).isEqualTo(1);
+        assertThat(restoredSummary.scheduleEntries()).isEqualTo(2);
+    }
 }

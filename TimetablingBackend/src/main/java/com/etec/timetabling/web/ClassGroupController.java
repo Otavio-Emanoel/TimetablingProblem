@@ -11,6 +11,7 @@ import com.etec.timetabling.repository.SubjectRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -106,7 +107,7 @@ public class ClassGroupController {
     }
 
     public record ClassGroupRequest(
-        @NotBlank String name,
+        @NotBlank @Size(min = 1, max = 80) String name,
         @NotNull ShiftType shiftType
     ) {
     }

@@ -90,11 +90,11 @@ public class ProfessorPreferenceController {
     @PostMapping
     public ResponseEntity<?> create(@RequestBody PreferenceRequest req) {
         // Validações
-        if (req.professorId() == null) {
+        if (req.professorId() == null || req.professorId() <= 0) {
             return ResponseEntity.badRequest().body(Map.of("error", "professorId é obrigatório"));
         }
-        if (req.dayOfWeek() < 0 || req.dayOfWeek() > 5) {
-            return ResponseEntity.badRequest().body(Map.of("error", "dayOfWeek deve ser 0-5"));
+        if (req.dayOfWeek() < 0 || req.dayOfWeek() > 7) {
+            return ResponseEntity.badRequest().body(Map.of("error", "dayOfWeek deve ser 0-7"));
         }
         if (req.weight() < 1 || req.weight() > 10) {
             return ResponseEntity.badRequest().body(Map.of("error", "weight deve ser 1-10"));
@@ -102,7 +102,7 @@ public class ProfessorPreferenceController {
 
         Professor professor = professorRepository.findById(req.professorId()).orElse(null);
         if (professor == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Professor não encontrado"));
+            return ResponseEntity.status(404).body(Map.of("error", "Professor não encontrado"));
         }
 
         ProfessorPreference pref = new ProfessorPreference();
@@ -111,34 +111,56 @@ public class ProfessorPreferenceController {
         pref.setWeight(req.weight());
 
         // Tipo da preferência (PREFERRED ou AVOID)
+        PreferenceType resolvedType = PreferenceType.PREFERRED;
         if (req.type() != null && !req.type().isBlank()) {
             try {
-                pref.setType(PreferenceType.valueOf(req.type().toUpperCase()));
+                resolvedType = PreferenceType.valueOf(req.type().trim().toUpperCase());
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().body(
                         Map.of("error", "type deve ser PREFERRED ou AVOID"));
             }
         }
+        pref.setType(resolvedType);
 
         // Matéria opcional
         if (req.subjectId() != null && req.subjectId() > 0) {
             Subject subject = subjectRepository.findById(req.subjectId()).orElse(null);
             if (subject == null) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Matéria não encontrada"));
+                return ResponseEntity.status(404).body(Map.of("error", "Matéria não encontrada"));
             }
             pref.setSubject(subject);
         }
 
         // Horários opcionais
-        if (req.startTime() != null && !req.startTime().isBlank()) {
-            pref.setStartTime(LocalTime.parse(req.startTime()));
+        LocalTime start = null;
+        LocalTime end = null;
+        try {
+            if (req.startTime() != null && !req.startTime().isBlank()) {
+                start = LocalTime.parse(req.startTime().trim());
+                pref.setStartTime(start);
+            }
+            if (req.endTime() != null && !req.endTime().isBlank()) {
+                end = LocalTime.parse(req.endTime().trim());
+                pref.setEndTime(end);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Formato de horário inválido (use HH:mm)"));
         }
-        if (req.endTime() != null && !req.endTime().isBlank()) {
-            pref.setEndTime(LocalTime.parse(req.endTime()));
+
+        if ((start != null && end == null) || (start == null && end != null)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Informe ambos startTime e endTime ou deixe ambos em branco"));
+        }
+        if (start != null && !start.isBefore(end)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "startTime deve ser anterior a endTime"));
+        }
+
+        if (preferenceRepository.existsByProfessorIdAndDayOfWeekAndStartTimeAndEndTimeAndType(
+                professor.getId(), req.dayOfWeek(), start, end, resolvedType)) {
+            return ResponseEntity.status(409).body(Map.of("error", "Preferência idêntica já cadastrada para este professor"));
         }
 
         ProfessorPreference saved = preferenceRepository.save(pref);
-        return ResponseEntity.ok(toResponse(saved));
+        return ResponseEntity.status(201).body(toResponse(saved));
     }
 
     /** Deletar uma preferência. */

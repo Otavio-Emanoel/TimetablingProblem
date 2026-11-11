@@ -2,10 +2,13 @@ package com.etec.timetabling.repository;
 
 import com.etec.timetabling.domain.ScheduleEntry;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ScheduleEntryRepository extends JpaRepository<ScheduleEntry, Long> {
     List<ScheduleEntry> findByClassGroupId(Long classGroupId);
+
+    Optional<ScheduleEntry> findByClassGroupIdAndTimeslotId(Long classGroupId, Long timeslotId);
 
     List<ScheduleEntry> findBySubjectId(Long subjectId);
 
@@ -19,3 +22,4 @@ public interface ScheduleEntryRepository extends JpaRepository<ScheduleEntry, Lo
 
     void deleteByTimeslotId(Long timeslotId);
 }
+

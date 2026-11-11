@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -40,9 +41,14 @@ public class SolverController {
     private final TimeslotRepository timeslotRepository;
     private final ClassGroupRepository classGroupRepository;
 
+    private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicReference<String> status = new AtomicReference<>("IDLE");
     private final AtomicReference<SolverService.SolverResult> lastResult = new AtomicReference<>(null);
     private final AtomicReference<String> errorMessage = new AtomicReference<>(null);
+
+    public boolean isRunning() {
+        return running.get();
+    }
 
     public SolverController(
         SolverService solverService,
@@ -173,7 +179,7 @@ public class SolverController {
 
     @PostMapping("/iniciar")
     public SolverStatusResponse start() {
-        if ("RUNNING".equals(status.get())) {
+        if (!running.compareAndSet(false, true)) {
             return new SolverStatusResponse("RUNNING", Instant.now().toString(), null, null, "Solver já está rodando");
         }
 
@@ -190,9 +196,10 @@ public class SolverController {
                 log.info("--- SOLVER FINALIZADO COM SUCESSO ---");
             } catch (Exception e) {
                 log.error("Solver falhou com erro", e);
-                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                errorMessage.set(msg);
+                errorMessage.set("Falha ao processar a grade horaria. Verifique os dados cadastrados.");
                 status.set("ERROR");
+            } finally {
+                running.set(false);
             }
         });
 

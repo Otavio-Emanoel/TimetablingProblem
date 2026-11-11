@@ -1,6 +1,8 @@
 package com.etec.timetabling.repository;
 
+import com.etec.timetabling.domain.PreferenceType;
 import com.etec.timetabling.domain.ProfessorPreference;
+import java.time.LocalTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -20,7 +22,16 @@ public interface ProfessorPreferenceRepository extends JpaRepository<ProfessorPr
     /** Todas as preferências de uma matéria. */
     List<ProfessorPreference> findBySubjectId(Long subjectId);
 
+    boolean existsByProfessorIdAndDayOfWeekAndStartTimeAndEndTimeAndType(
+        Long professorId,
+        int dayOfWeek,
+        LocalTime startTime,
+        LocalTime endTime,
+        PreferenceType type
+    );
+
     void deleteByProfessorId(Long professorId);
 
     void deleteBySubjectId(Long subjectId);
 }
+

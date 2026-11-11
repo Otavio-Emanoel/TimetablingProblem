@@ -5,7 +5,10 @@ import com.etec.timetabling.domain.ProfessorUnavailability;
 import com.etec.timetabling.repository.ProfessorRepository;
 import com.etec.timetabling.repository.ProfessorUnavailabilityRepository;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.time.LocalTime;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -64,6 +67,11 @@ public class ProfessorUnavailabilityController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid time range");
         }
 
+        if (unavailabilityRepository.existsByProfessorIdAndDayOfWeekAndStartTimeAndEndTime(
+                professor.getId(), request.dayOfWeek(), request.startTime(), request.endTime())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Restricao de horario ja cadastrada para este professor");
+        }
+
         ProfessorUnavailability entry = new ProfessorUnavailability();
         entry.setProfessor(professor);
         entry.setDayOfWeek(request.dayOfWeek());
@@ -91,8 +99,8 @@ public class ProfessorUnavailabilityController {
     }
 
     public record UnavailabilityRequest(
-        @NotNull Long professorId,
-        @NotNull Integer dayOfWeek,
+        @NotNull @Positive Long professorId,
+        @NotNull @Min(0) @Max(7) Integer dayOfWeek,
         @NotNull LocalTime startTime,
         @NotNull LocalTime endTime
     ) {

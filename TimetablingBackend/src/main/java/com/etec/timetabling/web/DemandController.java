@@ -7,9 +7,12 @@ import com.etec.timetabling.repository.DemandRepository;
 import com.etec.timetabling.repository.ProfessorRepository;
 import com.etec.timetabling.repository.SubjectRepository;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -82,6 +85,13 @@ public class DemandController {
         Subject subject = subjectRepository.findById(request.subjectId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
+        demandRepository.findBySubjectId(subject.getId()).stream()
+            .filter(existing -> !existing.getId().equals(id))
+            .findAny()
+            .ifPresent(existing -> {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Demanda ja cadastrada para esta materia");
+            });
+
         List<Professor> professors = professorRepository.findAllById(request.professorIds());
         if (professors.size() != request.professorIds().size()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Professor not found");
@@ -104,9 +114,9 @@ public class DemandController {
     }
 
     public record DemandRequest(
-        @NotNull Long subjectId,
-        @NotEmpty Set<Long> professorIds,
-        @Min(1) int quantityPerWeek,
+        @NotNull @Positive Long subjectId,
+        @NotEmpty @Size(max = 10) Set<@NotNull @Positive Long> professorIds,
+        @Min(1) @Max(40) int quantityPerWeek,
         boolean allowDoubleLesson
     ) {
     }
