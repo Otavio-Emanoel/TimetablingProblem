@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProfessorUnavailabilityRepository extends JpaRepository<ProfessorUnavailability, Long> {
     List<ProfessorUnavailability> findByProfessorId(Long professorId);
+
+    void deleteByProfessorId(Long professorId);
 }

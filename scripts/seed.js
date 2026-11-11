@@ -78,8 +78,31 @@ async function fetchProfessorId(nome) {
   } catch (e) { return null; }
 }
 
+async function fetchTurmaId(nome) {
+  try {
+    const res = await fetch(`${API_BASE}/api/class-groups`);
+    if (!res.ok) return null;
+    const list = await res.json();
+    const found = list.find(t => t.name.toUpperCase() === nome.toUpperCase());
+    return found ? found.id : null;
+  } catch (e) { return null; }
+}
+
+async function fetchSubject(nome, turmaId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/subjects?classGroupId=${turmaId}`);
+    if (!res.ok) return null;
+    const list = await res.json();
+    return list.find(s => s.name.toUpperCase() === nome.toUpperCase()) || null;
+  } catch (e) { return null; }
+}
+
 // --- EXECUÇÃO ---
 async function main() {
+  if (process.argv.includes("--reset")) {
+    console.log("🧹 Limpando banco de dados (--reset)...");
+    await fetch(`${API_BASE}/api/reset`, { method: "DELETE" });
+  }
   console.log("🚀 INICIANDO SEED (CORRIGIDO)...");
 
   // 1. PROFESSORES
@@ -102,7 +125,8 @@ async function main() {
   console.log("\n\n--- 2. Turmas ---");
   for (const t of TURMAS) {
     const res = await post("class-groups", t);
-    if (res) mapTurma.set(t.name, res.id);
+    const id = res ? res.id : await fetchTurmaId(t.name);
+    if (id) mapTurma.set(t.name, id);
     process.stdout.write("✅");
   }
 
@@ -250,7 +274,7 @@ async function main() {
     if (!turmaId) continue;
 
     // Matéria
-    const subj = await post("subjects", { name: d.m, classGroupId: turmaId });
+    const subj = (await post("subjects", { name: d.m, classGroupId: turmaId })) || (await fetchSubject(d.m, turmaId));
     if (!subj) continue;
 
     // Professores

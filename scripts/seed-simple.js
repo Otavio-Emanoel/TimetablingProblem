@@ -71,9 +71,20 @@ async function getTurmaId(name) {
   return list.find(t => t.name === name)?.id;
 }
 
+async function getSubject(name, classGroupId) {
+  const res = await fetch(`${API_BASE}/api/subjects?classGroupId=${classGroupId}`);
+  if (!res.ok) return null;
+  const list = await res.json();
+  return list.find(s => s.name === name) || null;
+}
+
 // --- EXECUÇÃO ---
 
 async function main() {
+  if (process.argv.includes("--reset")) {
+    console.log("🧹 Limpando banco de dados (--reset)...");
+    await fetch(`${API_BASE}/api/reset`, { method: "DELETE" });
+  }
   console.log("🧪 INICIANDO TESTE SIMPLES...");
 
   // 1. Criar Professores
@@ -135,7 +146,7 @@ async function main() {
     ];
 
     for (const s of subjectsTurma1) {
-      const subj = await post("subjects", { name: s.name, classGroupId: idTurma1 });
+      const subj = (await post("subjects", { name: s.name, classGroupId: idTurma1 })) || (await getSubject(s.name, idTurma1));
       if (!subj) continue;
       // escolher um professor preferido se disponível, senão qualquer um
       const chosen = (s.prefer || []).find((p) => p) || allProfIds[0];
@@ -164,7 +175,7 @@ async function main() {
     ];
 
     for (const s of subjectsTurma2) {
-      const subj = await post("subjects", { name: s.name, classGroupId: idTurma2 });
+      const subj = (await post("subjects", { name: s.name, classGroupId: idTurma2 })) || (await getSubject(s.name, idTurma2));
       if (!subj) continue;
       const chosen = (s.prefer || []).find((p) => p) || allProfIdsR[0];
       const demandPayload = { subjectId: subj.id, quantityPerWeek: s.qty, allowDoubleLesson: s.qty >= 2 };

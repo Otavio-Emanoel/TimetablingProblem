@@ -2223,6 +2223,10 @@ async function post(endpoint, data) {
 }
 
 async function main() {
+  if (process.argv.includes("--reset")) {
+    console.log("🧹 Limpando banco de dados (--reset)...");
+    await fetch(`${API_BASE}/api/reset`, { method: "DELETE" });
+  }
   console.log("🚀 INICIANDO SEED_FULL_V3: ZERO PREGUIÇA (100% EXATO)");
 
   // 1. Criar Turmas

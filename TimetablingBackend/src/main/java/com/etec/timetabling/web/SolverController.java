@@ -2,13 +2,15 @@ package com.etec.timetabling.web;
 
 import com.etec.timetabling.domain.ClassGroup;
 import com.etec.timetabling.domain.Demand;
+import com.etec.timetabling.domain.Professor;
+import com.etec.timetabling.domain.ScheduleEntry;
 import com.etec.timetabling.domain.ShiftType;
 import com.etec.timetabling.domain.Timeslot;
-import com.etec.timetabling.service.SolverService;
+import com.etec.timetabling.repository.ClassGroupRepository;
 import com.etec.timetabling.repository.DemandRepository;
 import com.etec.timetabling.repository.ScheduleEntryRepository;
 import com.etec.timetabling.repository.TimeslotRepository;
-import com.etec.timetabling.domain.ScheduleEntry;
+import com.etec.timetabling.service.SolverService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,25 +38,31 @@ public class SolverController {
     private final ScheduleEntryRepository scheduleEntryRepository;
     private final DemandRepository demandRepository;
     private final TimeslotRepository timeslotRepository;
+    private final ClassGroupRepository classGroupRepository;
 
     private final AtomicReference<String> status = new AtomicReference<>("IDLE");
     private final AtomicReference<SolverService.SolverResult> lastResult = new AtomicReference<>(null);
     private final AtomicReference<String> errorMessage = new AtomicReference<>(null);
 
-    public SolverController(SolverService solverService,
-                            ScheduleEntryRepository scheduleEntryRepository,
-                            DemandRepository demandRepository,
-                            TimeslotRepository timeslotRepository) {
+    public SolverController(
+        SolverService solverService,
+        ScheduleEntryRepository scheduleEntryRepository,
+        DemandRepository demandRepository,
+        TimeslotRepository timeslotRepository,
+        ClassGroupRepository classGroupRepository
+    ) {
         this.solverService = solverService;
         this.scheduleEntryRepository = scheduleEntryRepository;
         this.demandRepository = demandRepository;
         this.timeslotRepository = timeslotRepository;
+        this.classGroupRepository = classGroupRepository;
     }
 
     @GetMapping("/validar")
     public ValidationResponse validate() {
         List<Demand> demands = demandRepository.findAll();
         List<Timeslot> timeslots = timeslotRepository.findAll();
+        List<ClassGroup> allClassGroups = classGroupRepository.findAll();
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
 
@@ -67,23 +75,28 @@ public class SolverController {
             return new ValidationResponse(false, 0, 0, errors, warnings);
         }
 
-        // Total de aulas necessárias
         int totalLessons = demands.stream().mapToInt(Demand::getQuantityPerWeek).sum();
 
-        // Slots disponíveis por turno
         Map<ShiftType, Long> slotsByShift = timeslots.stream()
-                .collect(Collectors.groupingBy(Timeslot::getShiftType, Collectors.counting()));
+            .collect(Collectors.groupingBy(Timeslot::getShiftType, Collectors.counting()));
 
-        // Agrupar demandas por turma (ClassGroup)
         Map<Long, List<Demand>> demandsByClassGroup = new HashMap<>();
         Map<Long, String> classGroupNames = new HashMap<>();
         Map<Long, ShiftType> classGroupShifts = new HashMap<>();
+        Map<Long, Integer> professorWorkload = new HashMap<>();
+        Map<Long, String> professorNames = new HashMap<>();
+
         for (Demand d : demands) {
-            d.getProfessors().size(); // force-init lazy collection
+            d.getProfessors().size();
             ClassGroup cg = d.getSubject().getClassGroup();
             demandsByClassGroup.computeIfAbsent(cg.getId(), k -> new ArrayList<>()).add(d);
             classGroupNames.put(cg.getId(), cg.getName());
             classGroupShifts.put(cg.getId(), cg.getShiftType());
+
+            for (Professor p : d.getProfessors()) {
+                professorWorkload.merge(p.getId(), d.getQuantityPerWeek(), Integer::sum);
+                professorNames.put(p.getId(), p.getName());
+            }
         }
 
         boolean feasible = true;
@@ -98,44 +111,56 @@ public class SolverController {
 
             if (needed > available) {
                 errors.add(String.format(
-                        "Turma %s: %d aulas necessárias, mas apenas %d slots %s disponíveis.",
-                        cgName, needed, available, shift));
+                    "Turma %s: %d aulas necessárias, mas apenas %d slots %s disponíveis.",
+                    cgName, needed, available, shift));
                 feasible = false;
-            } else {
+            } else if (available > 0) {
                 double usage = (double) needed / available * 100;
-                if (usage > 80) {
+                if (usage > 85) {
                     warnings.add(String.format(
-                            "Turma %s: %.0f%% de ocupação (%d/%d slots %s).",
-                            cgName, usage, needed, available, shift));
+                        "Turma %s: %.0f%% de ocupação (%d/%d slots %s).",
+                        cgName, usage, needed, available, shift));
                 }
             }
         }
 
-        // Turmas sem demandas
-        long totalClassGroups = 11; // approximate
-        try {
-            totalClassGroups = demands.stream()
-                    .map(d -> d.getSubject().getClassGroup().getId())
-                    .distinct().count();
-        } catch (Exception ignored) {}
-
-        if (classGroupsWithDemands < totalClassGroups) {
-            // This is informational, not an error
+        // Turmas cadastradas mas sem demandas
+        List<String> emptyClasses = allClassGroups.stream()
+            .filter(cg -> !demandsByClassGroup.containsKey(cg.getId()))
+            .map(ClassGroup::getName)
+            .sorted()
+            .toList();
+        if (!emptyClasses.isEmpty()) {
+            warnings.add(String.format("Turmas sem demandas cadastradas: %s.", String.join(", ", emptyClasses)));
         }
 
-        // Checar professores sem demanda
+        // Checar janelas de tempo distintas disponíveis na semana para detectar sobrecarga de professores
+        long distinctTimeWindows = timeslots.stream()
+            .map(t -> t.getDayOfWeek() + "-" + t.getStartTime() + "-" + t.getEndTime())
+            .distinct()
+            .count();
+
+        for (var entry : professorWorkload.entrySet()) {
+            String profName = professorNames.get(entry.getKey());
+            int load = entry.getValue();
+            if (distinctTimeWindows > 0 && load > distinctTimeWindows) {
+                warnings.add(String.format(
+                    "Professor %s possui %d aulas atribuídas para %d horários distintos na semana.",
+                    profName, load, distinctTimeWindows));
+            }
+        }
+
         long demandsWithoutProf = demands.stream()
-                .filter(d -> d.getProfessors().isEmpty()).count();
+            .filter(d -> d.getProfessors().isEmpty()).count();
         if (demandsWithoutProf > 0) {
             warnings.add(String.format("%d demanda(s) sem professor(es) atribuído(s).", demandsWithoutProf));
         }
 
-        // Info geral
         warnings.add(0, String.format("%d turmas com demandas, %d aulas totais.",
-                classGroupsWithDemands, totalLessons));
+            classGroupsWithDemands, totalLessons));
 
         return new ValidationResponse(
-                feasible, totalLessons, timeslots.size(), errors, warnings);
+            feasible, totalLessons, timeslots.size(), errors, warnings);
     }
 
     public record ValidationResponse(
@@ -202,7 +227,7 @@ public class SolverController {
                 entry.getTimeslot().getStartTime().toString(),
                 entry.getTimeslot().getEndTime().toString(),
                 entry.getSubject().getName(),
-                entry.getProfessors().stream().map(prof -> prof.getName()).collect(Collectors.toList())
+                entry.getProfessors().stream().map(Professor::getName).sorted().collect(Collectors.toList())
             ))
             .toList();
     }

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -56,12 +57,36 @@ public class DemandController {
         Subject subject = subjectRepository.findById(request.subjectId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
+        if (demandRepository.existsBySubjectId(subject.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Demanda ja cadastrada para esta materia");
+        }
+
         List<Professor> professors = professorRepository.findAllById(request.professorIds());
         if (professors.size() != request.professorIds().size()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Professor not found");
         }
 
         Demand demand = new Demand();
+        demand.setSubject(subject);
+        demand.setQuantityPerWeek(request.quantityPerWeek());
+        demand.setAllowDoubleLesson(request.allowDoubleLesson());
+        demand.setProfessors(new HashSet<>(professors));
+        return demandRepository.save(demand);
+    }
+
+    @PutMapping("/{id}")
+    public Demand update(@PathVariable Long id, @Valid @RequestBody DemandRequest request) {
+        Demand demand = demandRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        Subject subject = subjectRepository.findById(request.subjectId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        List<Professor> professors = professorRepository.findAllById(request.professorIds());
+        if (professors.size() != request.professorIds().size()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Professor not found");
+        }
+
         demand.setSubject(subject);
         demand.setQuantityPerWeek(request.quantityPerWeek());
         demand.setAllowDoubleLesson(request.allowDoubleLesson());

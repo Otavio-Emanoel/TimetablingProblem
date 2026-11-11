@@ -6,4 +6,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DemandRepository extends JpaRepository<Demand, Long> {
     List<Demand> findBySubjectClassGroupId(Long classGroupId);
+
+    List<Demand> findBySubjectId(Long subjectId);
+
+    boolean existsBySubjectId(Long subjectId);
+
+    void deleteBySubjectId(Long subjectId);
+
+    void deleteBySubjectClassGroupId(Long classGroupId);
 }

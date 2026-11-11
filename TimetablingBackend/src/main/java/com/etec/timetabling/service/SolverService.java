@@ -471,6 +471,10 @@ public class SolverService {
             }
         }
 
+        // Contagem final de preferências sobre as entradas efetivamente alocadas
+        prefsTotal = prefsByProf.values().stream().mapToInt(List::size).sum();
+        prefsRespected = prefsTotal > 0 ? countPreferencesMatched(entries, prefsByProf) : 0;
+
         // Contagem por turma
         Map<String, Long> perClassCount = entries.stream()
                 .collect(Collectors.groupingBy(
@@ -639,12 +643,14 @@ public class SolverService {
             }
 
             // Conflito com professor?
+            boolean slotBusyByProf = false;
+            boolean slotBusyByUnavail = false;
             for (Professor prof : unit.professors) {
                 List<TimeBlock> pBlocks = professorBlocks.getOrDefault(
                         prof.getId(), List.of());
                 boolean profBusy = pBlocks.stream().anyMatch(b -> b.overlaps(day, start, end));
                 if (profBusy) {
-                    blockedByProf++;
+                    slotBusyByProf = true;
                     profConflictCounts.merge(prof.getName(), 1, Integer::sum);
                 }
 
@@ -652,10 +658,16 @@ public class SolverService {
                         prof.getId(), List.of());
                 boolean unavail = pUnavail.stream().anyMatch(b -> b.overlaps(day, start, end));
                 if (unavail) {
-                    blockedByUnavail++;
+                    slotBusyByUnavail = true;
                     profConflictCounts.merge(
                             prof.getName() + " (indisponível)", 1, Integer::sum);
                 }
+            }
+            if (slotBusyByProf) {
+                blockedByProf++;
+            }
+            if (slotBusyByUnavail) {
+                blockedByUnavail++;
             }
         }
 

@@ -1,6 +1,7 @@
 package com.etec.timetabling.domain;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -33,7 +34,7 @@ public class Demand {
 
     private boolean allowDoubleLesson;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "demand_professor",
         joinColumns = @JoinColumn(name = "demand_id"),

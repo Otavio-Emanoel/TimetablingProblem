@@ -1,6 +1,7 @@
 package com.etec.timetabling.domain;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -37,7 +38,7 @@ public class ScheduleEntry {
     @JoinColumn(name = "subject_id")
     private Subject subject;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "schedule_entry_professor",
         joinColumns = @JoinColumn(name = "schedule_entry_id"),

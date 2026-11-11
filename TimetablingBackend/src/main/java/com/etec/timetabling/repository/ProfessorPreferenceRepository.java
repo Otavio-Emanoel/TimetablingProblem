@@ -19,4 +19,8 @@ public interface ProfessorPreferenceRepository extends JpaRepository<ProfessorPr
 
     /** Todas as preferências de uma matéria. */
     List<ProfessorPreference> findBySubjectId(Long subjectId);
+
+    void deleteByProfessorId(Long professorId);
+
+    void deleteBySubjectId(Long subjectId);
 }
