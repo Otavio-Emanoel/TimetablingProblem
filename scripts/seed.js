@@ -386,7 +386,7 @@ async function main() {
   for (const nome of PROFESSORES) {
     let id = null;
     const res = await post("professors", { name: nome });
-    if (res) id = res.id;
+    if (res && res.id) id = res.id;
     else id = await fetchProfessorId(nome);
 
     if (id) {
@@ -401,7 +401,7 @@ async function main() {
   console.log("\n\n--- 2. Cadastrando 12 Turmas ---");
   for (const t of TURMAS) {
     const res = await post("class-groups", t);
-    const id = res ? res.id : await fetchTurmaId(t.name);
+    const id = (res && res.id) ? res.id : await fetchTurmaId(t.name);
     if (id) {
       mapTurma.set(t.name, id);
       process.stdout.write(`[${t.name}:${t.shiftType}] `);
@@ -486,10 +486,20 @@ async function main() {
     }
   }
 
+  // Se as demandas já existiam, busca contadores reais da API
+  try {
+    const demReq = await fetch(`${API_BASE}/api/demands`);
+    if (demReq.ok) {
+      const allDem = await demReq.json();
+      criadas = allDem.length;
+      aulasTotal = allDem.reduce((acc, cur) => acc + (cur.quantityPerWeek || 0), 0);
+    }
+  } catch (e) {}
+
   console.log(`\n\n✅ SEED FINALIZADO COM SUCESSO!`);
   console.log(`📊 Total de Turmas: ${mapTurma.size}`);
   console.log(`👨‍🏫 Total de Professores: ${mapProf.size}`);
-  console.log(`📚 Total de Demandas: ${criadas} / ${DEMANDAS.length}`);
+  console.log(`📚 Total de Demandas no Banco: ${criadas} / ${DEMANDAS.length}`);
   console.log(`⏱️ Total de Aulas Semanais: ${aulasTotal}`);
   console.log(`\nAgora você pode iniciar o solver via:`);
   console.log(`POST ${API_BASE}/api/solver/iniciar`);
