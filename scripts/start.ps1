@@ -38,6 +38,22 @@ function Print-Warning {
 }
 
 Write-Host "📦 Verificando dependências..." -ForegroundColor Cyan
+
+$BackendPort = $env:BACKEND_PORT
+if (-not $BackendPort) {
+    try {
+        $busy = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
+        if ($busy) {
+            $BackendPort = "8085"
+            Print-Warning "Porta 8080 ocupada no host. Usando porta alternativa: $BackendPort"
+        } else {
+            $BackendPort = "8080"
+        }
+    } catch {
+        $BackendPort = "8080"
+    }
+}
+$env:BACKEND_PORT = $BackendPort
 if (-not (Test-CommandExists docker)) {
     Print-Error "Docker não encontrado. Instale o Docker Desktop: https://www.docker.com/products/docker-desktop"
     exit 1
@@ -77,7 +93,7 @@ Write-Host ""
 Write-Host "🐳 Iniciando serviços com Docker Compose..." -ForegroundColor Cyan
 docker compose up -d --build
 
-Write-Host "⏳ Aguardando backend ficar pronto em http://localhost:8080/api/health ..." -ForegroundColor Yellow
+Write-Host "⏳ Aguardando backend ficar pronto em http://localhost:$BackendPort/api/health ..." -ForegroundColor Yellow
 $maxRetries = 45
 $retry = 0
 $healthy = $false
@@ -85,7 +101,7 @@ while (-not $healthy -and $retry -lt $maxRetries) {
     Start-Sleep -Seconds 2
     $retry++
     try {
-        $resp = Invoke-WebRequest -Uri "http://localhost:8080/api/health" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+        $resp = Invoke-WebRequest -Uri "http://localhost:$BackendPort/api/health" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
         if ($resp.StatusCode -eq 200) {
             $healthy = $true
         }
@@ -108,7 +124,8 @@ elseif ($response -match "^[mM]$") { $seedFile = "scripts/seed-simple.js" }
 
 if ($seedFile) {
     if (Test-CommandExists node) {
-        Write-Host "Executando $seedFile..." -ForegroundColor Cyan
+        Write-Host "Executando $seedFile na porta $BackendPort..." -ForegroundColor Cyan
+        $env:API_BASE = "http://localhost:$BackendPort"
         node $seedFile
         Print-Status "Seed executado com sucesso"
     } else {
@@ -121,7 +138,7 @@ Write-Host "==================================================================" 
 Print-Status "Serviços iniciados com sucesso!"
 Write-Host ""
 Write-Host "📍 URLs de acesso:" -ForegroundColor Cyan
-Write-Host "   Backend:  http://localhost:8080" -ForegroundColor White
+Write-Host "   Backend:  http://localhost:$BackendPort" -ForegroundColor White
 Write-Host "   Frontend: http://localhost:3000" -ForegroundColor White
 Write-Host ""
 Write-Host "Para parar os serviços, execute: .\scripts\stop.ps1 ou .\scripts\stop.bat" -ForegroundColor White

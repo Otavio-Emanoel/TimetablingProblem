@@ -42,6 +42,17 @@ for arg in "$@"; do
     esac
 done
 
+BACKEND_PORT="${BACKEND_PORT:-}"
+if [ -z "$BACKEND_PORT" ]; then
+    if (command_exists ss && ss -tln | grep -q ":8080 ") || (command_exists netstat && netstat -tln 2>/dev/null | grep -q ":8080 "); then
+        BACKEND_PORT="8085"
+        print_warning "Porta 8080 ocupada no host. Usando porta alternativa: $BACKEND_PORT"
+    else
+        BACKEND_PORT="8080"
+    fi
+fi
+export BACKEND_PORT
+
 # 1. Verificar dependências
 echo ""
 echo "📦 Verificando dependências..."
@@ -84,10 +95,10 @@ docker compose up -d --build
 
 # 4. Aguardar backend ficar saudável via healthcheck
 echo ""
-echo "⏳ Aguardando backend ficar pronto em http://localhost:8080/api/health ..."
+echo "⏳ Aguardando backend ficar pronto em http://localhost:${BACKEND_PORT}/api/health ..."
 MAX_RETRIES=45
 COUNT=0
-until curl -fsS http://localhost:8080/api/health >/dev/null 2>&1; do
+until curl -fsS "http://localhost:${BACKEND_PORT}/api/health" >/dev/null 2>&1; do
     COUNT=$((COUNT + 1))
     if [ "$COUNT" -ge "$MAX_RETRIES" ]; then
         print_error "Timeout aguardando o backend iniciar. Verifique os logs com: docker compose logs backend"
@@ -113,7 +124,7 @@ fi
 if [ "$SEED_MODE" != "none" ]; then
     if command_exists node; then
         echo "🌱 Executando scripts/$SEED_MODE..."
-        node "scripts/$SEED_MODE"
+        API_BASE="http://localhost:${BACKEND_PORT}" node "scripts/$SEED_MODE"
         print_status "Seed ($SEED_MODE) executado com sucesso"
     else
         print_error "Node.js não encontrado. Pulando seed."
@@ -126,11 +137,11 @@ echo "================================================================"
 echo -e "${GREEN}✓ Serviços iniciados com sucesso!${NC}"
 echo ""
 echo "📍 URLs de acesso:"
-echo "   Backend:  http://localhost:8080"
+echo "   Backend:  http://localhost:${BACKEND_PORT}"
 echo "   Frontend: http://localhost:3000"
 echo ""
 echo "📝 Comandos úteis:"
 echo "   Parar serviços:     ./scripts/stop.sh"
-echo "   Popular banco:      node scripts/seed.js (ou seed_full.js / seed-simple.js)"
+echo "   Popular banco:      API_BASE=http://localhost:${BACKEND_PORT} node scripts/seed.js"
 echo "   Ver logs:           docker compose logs -f"
 echo "================================================================"
