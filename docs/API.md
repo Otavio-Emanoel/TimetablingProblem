@@ -4,13 +4,15 @@ O backend expõe uma API RESTful sob o prefixo `/api` (porta padrão `8080`).
 
 ---
 
-## 1. Saúde, Resumo e Reset (`/api`)
+## 1. Saúde, Resumo, Backup e Reset (`/api`)
 
 | Método | Endpoint | Descrição |
 | :--- | :--- | :--- |
 | `GET` | `/api/health` | Verifica se o backend está online (`{"status": "ok", "timestamp": "..."}`). |
 | `GET` | `/api/summary` | Retorna contadores gerais do sistema (`timeslots`, `professors`, `classGroups`, `subjects`, `demands`, `scheduleEntries`, `unavailabilities`, `preferences`). |
-| `DELETE` | `/api/reset` | Limpa todos os registros do banco de dados respeitando a ordem de integridade referencial (`204 No Content`). |
+| `GET` | `/api/backup` | Exporta um snapshot JSON completo de todos os cadastros e da grade alocada. |
+| `POST` | `/api/backup` | Restaura um snapshot JSON de forma transacional (`@Transactional`), recriando turmas, professores, matérias, demandas, horários, restrições, preferências e grades. |
+| `DELETE` | `/api/reset` | Limpa todos os registros do banco de dados respeitando a ordem de integridade referencial (`204 No Content`, ou `409 Conflict` se o solver estiver rodando). |
 
 ---
 
@@ -156,7 +158,7 @@ O backend expõe uma API RESTful sob o prefixo `/api` (porta padrão `8080`).
 
 ---
 
-## 10. Consulta de Grades (`/api/grade`)
+## 10. Consulta, Auditoria e Movimentação Manual de Grades (`/api/grade`)
 
 | Método | Endpoint | Status | Descrição |
 | :--- | :--- | :--- | :--- |
@@ -164,4 +166,7 @@ O backend expõe uma API RESTful sob o prefixo `/api` (porta padrão `8080`).
 | `GET` | `/api/grade/todas` | `200` | Retorna um mapa com as grades de todas as turmas. |
 | `GET` | `/api/grade/professor/{professorId}` | `200` | Retorna a agenda semanal completa de um professor específico em todas as turmas. |
 | `GET` | `/api/grade/professores` | `200` | Retorna as agendas semanais de todos os professores com aulas alocadas. |
+| `GET` | `/api/grade/auditoria` | `200` | Executa auditoria completa da grade: Score de Qualidade (`0–100`), janelas ociosas por professor, conflitos de horário, violações de indisponibilidade e demandas pendentes. |
+| `POST` | `/api/grade/mover` | `200 / 409` | Move uma aula para outro slot vazio ou troca (`swap`) duas aulas da mesma turma, validando conflitos de professores e restrições (`409 Conflict` se houver choque e `force=false`). |
 | `DELETE` | `/api/grade` | `204` | Limpa todas as aulas alocadas (`schedule_entry`). |
+

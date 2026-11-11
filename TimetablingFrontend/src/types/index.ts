@@ -95,3 +95,46 @@ export type ProfessorPreference = {
   weight: number;
   type: "PREFERRED" | "AVOID";
 };
+
+export type MissingDemandItem = {
+  subject: string;
+  classGroup: string;
+  demanded: number;
+  scheduled: number;
+  missing: number;
+};
+
+export type ProfessorStatItem = {
+  professorId: number;
+  professorName: string;
+  totalLessons: number;
+  classGroupsCount: number;
+  activeDays: number;
+  windowCount: number;
+  preferencesMatched: number;
+  preferencesTotal: number;
+};
+
+export type GradeAuditResponse = {
+  totalDemandedLessons: number;
+  totalScheduledLessons: number;
+  qualityScore: number;
+  totalWindows: number;
+  missingDemands: MissingDemandItem[];
+  professorConflicts: string[];
+  unavailabilityViolations: string[];
+  professorStats: ProfessorStatItem[];
+};
+
+export type BackupPayload = {
+  exportedAt: string;
+  professors: string[];
+  classGroups: Array<{ name: string; shiftType: string }>;
+  timeslots: Array<{ dayOfWeek: number; startTime: string; endTime: string; shiftType: string }>;
+  subjects: Array<{ name: string; classGroupName: string }>;
+  demands: Array<{ subjectName: string; classGroupName: string; professors: string[]; quantityPerWeek: number; allowDoubleLesson: boolean }>;
+  unavailabilities: Array<{ professorName: string; dayOfWeek: number; startTime: string; endTime: string }>;
+  preferences: Array<{ professorName: string; subjectName: string | null; classGroupName: string | null; dayOfWeek: number; startTime: string | null; endTime: string | null; weight: number; type: string }>;
+  scheduleEntries: Array<{ classGroupName: string; subjectName: string; dayOfWeek: number; startTime: string; endTime: string; shiftType: string; professors: string[] }>;
+};
+

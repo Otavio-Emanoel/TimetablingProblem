@@ -22,6 +22,10 @@ import {
   UserCheck,
   RotateCcw,
   CheckCircle2,
+  Upload,
+  FileSpreadsheet,
+  ArrowLeftRight,
+  ShieldCheck,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -38,6 +42,8 @@ import {
   ClassGradeData,
   ProfessorPreference,
   ProfessorGradeEntry,
+  GradeAuditResponse,
+  BackupPayload,
 } from "@/types";
 
 // --- SUB-COMPONENTS ---
@@ -279,7 +285,20 @@ export default function Dashboard({ data }: DashboardProps) {
   const [allGradesData, setAllGradesData] = useState<Record<string, ClassGradeData>>({});
   const [allGradesLoading, setAllGradesLoading] = useState(false);
 
-  // Refs para os formulários
+  // Estado para Auditoria & Qualidade
+  const [auditData, setAuditData] = useState<GradeAuditResponse | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  // Estado para movimentação/troca manual de aulas na grade
+  const [movingSlot, setMovingSlot] = useState<{
+    dayOfWeek: number;
+    startTime: string;
+    subject: string;
+  } | null>(null);
+  const [forceMove, setForceMove] = useState(false);
+
+  // Refs para os formulários e backup
+  const backupInputRef = useRef<HTMLInputElement>(null);
   const professorFormRef = useRef<HTMLFormElement>(null);
   const classFormRef = useRef<HTMLFormElement>(null);
   const subjectFormRef = useRef<HTMLFormElement>(null);
@@ -371,6 +390,122 @@ export default function Dashboard({ data }: DashboardProps) {
       loadAllGrades();
     }
   }, [activeTab, loadAllGrades]);
+
+  const loadAudit = useCallback(async () => {
+    setAuditLoading(true);
+    try {
+      const res = await Actions.fetchGradeAudit();
+      setAuditData(res);
+    } catch {
+      setAuditData(null);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "audit") {
+      loadAudit();
+    }
+  }, [activeTab, loadAudit]);
+
+  const sanitizeCsvCell = (val: string) => {
+    const clean = (val ?? "").replace(/"/g, '""');
+    // Previne CSV Formula Injection (CWE-1236)
+    if (/^[=+\-@\t\r]/.test(clean)) {
+      return `"'${clean}"`;
+    }
+    return `"${clean}"`;
+  };
+
+  const downloadCsv = (filename: string, rows: string[][]) => {
+    const csvContent =
+      "\uFEFF" + rows.map((r) => r.map(sanitizeCsvCell).join(";")).join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportBackup = () => {
+    startTransition(() => {
+      void Actions.exportBackupJson()
+        .then((backup) => {
+          const blob = new Blob([JSON.stringify(backup, null, 2)], {
+            type: "application/json",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `etecflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast("success", "Backup JSON exportado com sucesso!");
+        })
+        .catch((err: unknown) => {
+          showToast("error", err instanceof Error ? err.message : "Erro ao exportar backup");
+        });
+    });
+  };
+
+  const handleImportBackupFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result)) as BackupPayload;
+        startTransition(() => {
+          void Actions.importBackupJson(parsed)
+            .then(() => {
+              showToast("success", "Backup restaurado com sucesso!");
+              void loadGrade(selectedClassGroupId);
+              void loadProfGrade(selectedProfessorId);
+              router.refresh();
+            })
+            .catch((err: unknown) => {
+              showToast("error", err instanceof Error ? err.message : "Erro ao restaurar backup");
+            });
+        });
+      } catch {
+        showToast("error", "Arquivo JSON inválido.");
+      } finally {
+        e.target.value = "";
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleMoveSlotTo = (targetDay: number, targetStartTime: string) => {
+    if (!movingSlot || !selectedClassGroupId) return;
+    if (movingSlot.dayOfWeek === targetDay && movingSlot.startTime === targetStartTime) {
+      setMovingSlot(null);
+      return;
+    }
+    const source = movingSlot;
+    startTransition(() => {
+      void Actions.moveOrSwapGradeEntry({
+        classGroupId: selectedClassGroupId,
+        fromDay: source.dayOfWeek,
+        fromStartTime: source.startTime.length === 5 ? `${source.startTime}:00` : source.startTime,
+        toDay: targetDay,
+        toStartTime: targetStartTime.length === 5 ? `${targetStartTime}:00` : targetStartTime,
+        force: forceMove,
+      })
+        .then((res) => {
+          setMovingSlot(null);
+          showToast("success", res.message);
+          void loadGrade(selectedClassGroupId);
+          router.refresh();
+        })
+        .catch((err: unknown) => {
+          showToast("error", err instanceof Error ? err.message : "Conflito ao mover aula");
+        });
+    });
+  };
 
   const openModal = (type: string) => {
     setModalType(type);
@@ -765,6 +900,7 @@ export default function Dashboard({ data }: DashboardProps) {
     { id: "grade", label: "Grade por Turma", icon: Calendar },
     { id: "profGrade", label: "Grade por Professor", icon: UserCheck },
     { id: "allGrades", label: "Todas as Grades", icon: GraduationCap },
+    { id: "audit", label: "Auditoria & Qualidade", icon: ShieldCheck },
   ];
 
   return (
@@ -873,6 +1009,27 @@ export default function Dashboard({ data }: DashboardProps) {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={backupInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={handleImportBackupFile}
+                  className="hidden"
+                />
+                <ActionButton
+                  onClick={handleExportBackup}
+                  label="Exportar Backup JSON"
+                  icon={Download}
+                  variant="secondary"
+                  disabled={isPending}
+                />
+                <ActionButton
+                  onClick={() => backupInputRef.current?.click()}
+                  label="Restaurar Backup"
+                  icon={Upload}
+                  variant="secondary"
+                  disabled={isPending}
+                />
                 {data.timeslots.length === 0 && (
                   <ActionButton
                     onClick={handleGenerateDefaultTimeslots}
@@ -1847,10 +2004,28 @@ export default function Dashboard({ data }: DashboardProps) {
                   Grade Horária — {selectedClassGroup?.name ?? "Turma"}
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Turno {shiftType} • {gradeEntries.length} aulas alocadas
+                  Turno {shiftType} • {gradeEntries.length} aulas alocadas • Clique em ⇄ numa aula para mover ou trocar de horário
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const header = ["Horário", "Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
+                    const rows = timeRows.map((row) => [
+                      `${row.startTime} - ${row.endTime}`,
+                      ...[1, 2, 3, 4, 5].map((d) => {
+                        const e = gradeMap.get(`${d}-${row.startTime}-${row.endTime}`);
+                        return e ? `${e.subject} (${e.professors.join(", ")})` : "";
+                      }),
+                    ]);
+                    downloadCsv(`grade-${selectedClassGroup?.name ?? "turma"}.csv`, [header, ...rows]);
+                  }}
+                  disabled={gradeLoading || gradeEntries.length === 0}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <FileSpreadsheet size={16} /> Exportar CSV
+                </button>
                 <button
                   type="button"
                   onClick={() =>
@@ -1861,13 +2036,16 @@ export default function Dashboard({ data }: DashboardProps) {
                     )
                   }
                   disabled={gradeLoading || gradeEntries.length === 0}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   <Download size={16} /> Exportar PDF
                 </button>
                 <select
                   value={selectedClassGroupId ?? ""}
-                  onChange={(e) => setSelectedClassGroupId(Number(e.target.value))}
+                  onChange={(e) => {
+                    setMovingSlot(null);
+                    setSelectedClassGroupId(Number(e.target.value));
+                  }}
                   aria-label="Selecionar turma"
                   className="bg-slate-50 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -1879,6 +2057,35 @@ export default function Dashboard({ data }: DashboardProps) {
                 </select>
               </div>
             </div>
+
+            {movingSlot && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-amber-900 text-sm">
+                  <ArrowLeftRight size={18} className="text-amber-600 shrink-0" />
+                  <span>
+                    Movendo <strong>{movingSlot.subject}</strong> ({dayLabels[movingSlot.dayOfWeek]}, {movingSlot.startTime}). Clique em outro horário da grade para mover ou trocar!
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 text-xs font-medium text-amber-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={forceMove}
+                      onChange={(e) => setForceMove(e.target.checked)}
+                      className="rounded border-amber-300"
+                    />
+                    Forçar mesmo com conflito
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setMovingSlot(null)}
+                    className="text-xs font-bold text-amber-800 hover:text-amber-950 px-3 py-1 rounded bg-amber-100"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
 
             {data.classGroups.length === 0 ? (
               <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
@@ -1925,21 +2132,66 @@ export default function Dashboard({ data }: DashboardProps) {
                         {[1, 2, 3, 4, 5].map((dayOfWeek) => {
                           const key = `${dayOfWeek}-${row.startTime}-${row.endTime}`;
                           const entry = gradeMap.get(key);
+                          const isSelectedSource =
+                            movingSlot?.dayOfWeek === dayOfWeek &&
+                            movingSlot?.startTime === row.startTime;
 
                           return (
                             <td
                               key={`${rowIdx}-${dayOfWeek}`}
-                              className="px-6 py-4 text-center border-l border-slate-100"
+                              className="px-4 py-3 text-center border-l border-slate-100"
                             >
                               {entry ? (
-                                <div className="space-y-1 bg-blue-50 p-2 rounded-lg border border-blue-100">
-                                  <p className="text-sm font-bold text-blue-800">
-                                    {entry.subject}
-                                  </p>
+                                <div
+                                  className={`space-y-1 p-2 rounded-lg border transition-all ${
+                                    isSelectedSource
+                                      ? "bg-amber-50 border-amber-400 ring-2 ring-amber-300"
+                                      : "bg-blue-50 border-blue-100"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between gap-1">
+                                    <p className="text-sm font-bold text-blue-800 truncate">
+                                      {entry.subject}
+                                    </p>
+                                    {!movingSlot ? (
+                                      <button
+                                        type="button"
+                                        title="Mover ou trocar esta aula de horário"
+                                        onClick={() =>
+                                          setMovingSlot({
+                                            dayOfWeek,
+                                            startTime: row.startTime,
+                                            subject: entry.subject,
+                                          })
+                                        }
+                                        className="text-blue-400 hover:text-blue-700 p-0.5 rounded"
+                                      >
+                                        <ArrowLeftRight size={13} />
+                                      </button>
+                                    ) : !isSelectedSource ? (
+                                      <button
+                                        type="button"
+                                        disabled={isPending}
+                                        onClick={() => handleMoveSlotTo(dayOfWeek, row.startTime)}
+                                        className="text-[10px] font-bold bg-amber-600 text-white px-1.5 py-0.5 rounded hover:bg-amber-700"
+                                      >
+                                        Trocar ⇄
+                                      </button>
+                                    ) : null}
+                                  </div>
                                   <p className="text-xs text-blue-600 font-medium">
                                     {entry.professors.join(", ")}
                                   </p>
                                 </div>
+                              ) : movingSlot ? (
+                                <button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() => handleMoveSlotTo(dayOfWeek, row.startTime)}
+                                  className="w-full py-2 px-2 rounded-lg border border-dashed border-amber-300 bg-amber-50/50 hover:bg-amber-100 text-amber-800 text-xs font-semibold transition-colors"
+                                >
+                                  Mover para cá
+                                </button>
                               ) : (
                                 <span className="text-slate-300 text-xs">-</span>
                               )}
@@ -1967,7 +2219,27 @@ export default function Dashboard({ data }: DashboardProps) {
                   {profGradeEntries.length} aulas alocadas na semana
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const profName =
+                      data.professors.find((p) => p.id === selectedProfessorId)?.name ?? "professor";
+                    const header = ["Horário", "Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
+                    const rows = allUniqueTimeRows.map((row) => [
+                      `${row.startTime} - ${row.endTime}`,
+                      ...[1, 2, 3, 4, 5].map((d) => {
+                        const e = profGradeMap.get(`${d}-${row.startTime}-${row.endTime}`);
+                        return e ? `${e.subject} - Turma ${e.classGroup} (${e.shiftType})` : "";
+                      }),
+                    ]);
+                    downloadCsv(`agenda-${profName}.csv`, [header, ...rows]);
+                  }}
+                  disabled={profGradeLoading || profGradeEntries.length === 0}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <FileSpreadsheet size={16} /> Exportar CSV
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -1980,7 +2252,7 @@ export default function Dashboard({ data }: DashboardProps) {
                     );
                   }}
                   disabled={profGradeLoading || profGradeEntries.length === 0}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   <Download size={16} /> Exportar PDF
                 </button>
@@ -2255,6 +2527,227 @@ export default function Dashboard({ data }: DashboardProps) {
                   );
                 })}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* AUDITORIA & QUALIDADE TAB */}
+        {activeTab === "audit" && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap justify-between items-center gap-4 bg-white p-4 rounded-xl border border-slate-200">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800">
+                  Auditoria de Qualidade & Estatísticas Docentes
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Verificação de conflitos, janelas ociosas entre aulas, demandas pendentes e satisfação de preferências
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadAudit}
+                disabled={auditLoading}
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {auditLoading ? <Loader size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                Recalcular Auditoria
+              </button>
+            </div>
+
+            {auditLoading || !auditData ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 flex items-center justify-center gap-2">
+                <Loader className="animate-spin" size={20} />
+                Analisando qualidade da grade...
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card
+                    title="Score de Qualidade"
+                    value={`${auditData.qualityScore} / 100`}
+                    subtitle={
+                      auditData.qualityScore >= 85
+                        ? "Excelente distribuição"
+                        : auditData.qualityScore >= 60
+                        ? "Grade aceitável com ajustes"
+                        : "Requer atenção"
+                    }
+                    icon={ShieldCheck}
+                    color={
+                      auditData.qualityScore >= 85
+                        ? "bg-emerald-600"
+                        : auditData.qualityScore >= 60
+                        ? "bg-amber-500"
+                        : "bg-red-600"
+                    }
+                  />
+                  <Card
+                    title="Aulas Alocadas"
+                    value={`${auditData.totalScheduledLessons} / ${auditData.totalDemandedLessons}`}
+                    subtitle={`${auditData.missingDemands.length} demandas incompletas`}
+                    icon={Calendar}
+                    color="bg-blue-600"
+                  />
+                  <Card
+                    title="Janelas Ociosas"
+                    value={auditData.totalWindows}
+                    subtitle="Intervalos vagos entre aulas no mesmo dia"
+                    icon={Clock}
+                    color="bg-indigo-600"
+                  />
+                  <Card
+                    title="Conflitos / Violações"
+                    value={
+                      auditData.professorConflicts.length +
+                      auditData.unavailabilityViolations.length
+                    }
+                    subtitle={`${auditData.professorConflicts.length} choques • ${auditData.unavailabilityViolations.length} restrições`}
+                    icon={ShieldAlert}
+                    color={
+                      auditData.professorConflicts.length +
+                        auditData.unavailabilityViolations.length ===
+                      0
+                        ? "bg-emerald-600"
+                        : "bg-red-600"
+                    }
+                  />
+                </div>
+
+                {(auditData.professorConflicts.length > 0 ||
+                  auditData.unavailabilityViolations.length > 0) && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-5 space-y-2">
+                    <h3 className="font-bold text-red-800 flex items-center gap-2">
+                      <AlertCircle size={18} /> Alertas Críticos na Grade Atual
+                    </h3>
+                    <ul className="list-disc list-inside text-xs text-red-700 space-y-1">
+                      {auditData.professorConflicts.map((c, idx) => (
+                        <li key={`conf-${idx}`}>{c}</li>
+                      ))}
+                      {auditData.unavailabilityViolations.map((v, idx) => (
+                        <li key={`viol-${idx}`}>{v}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {auditData.missingDemands.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-3">
+                    <h3 className="font-bold text-amber-900 text-sm">
+                      Demandas com Aulas Pendentes ({auditData.missingDemands.length})
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {auditData.missingDemands.map((m, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white border border-amber-200 rounded-lg px-3 py-2 flex justify-between items-center text-xs"
+                        >
+                          <span className="font-semibold text-slate-800">
+                            {m.classGroup} — {m.subject}
+                          </span>
+                          <span className="text-amber-700 font-bold">
+                            {m.scheduled}/{m.demanded} (-{m.missing})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                    <h3 className="font-bold text-slate-800">
+                      Relatório de Carga Horária, Dias de Trabalho e Janelas por Professor
+                    </h3>
+                    <span className="text-xs text-slate-500">
+                      {auditData.professorStats.length} docentes analisados
+                    </span>
+                  </div>
+                  <div
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Estatísticas por Professor"
+                    className="table-wrapper"
+                  >
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                            Professor
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                            Aulas Alocadas
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                            Turmas
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                            Dias na Escola
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                            Janelas Ociosas
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                            Preferências
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
+                            Agenda
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {auditData.professorStats.map((st) => (
+                          <tr key={st.professorId} className="hover:bg-slate-50">
+                            <td className="px-6 py-3 font-semibold text-slate-800 text-sm">
+                              {st.professorName}
+                            </td>
+                            <td className="px-6 py-3 text-center">
+                              <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
+                                {st.totalLessons} aulas
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-center text-sm text-slate-600">
+                              {st.classGroupsCount}
+                            </td>
+                            <td className="px-6 py-3 text-center text-sm text-slate-600">
+                              {st.activeDays} dias
+                            </td>
+                            <td className="px-6 py-3 text-center">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                  st.windowCount === 0
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : st.windowCount <= 2
+                                    ? "bg-amber-50 text-amber-700"
+                                    : "bg-red-50 text-red-700"
+                                }`}
+                              >
+                                {st.windowCount} {st.windowCount === 1 ? "janela" : "janelas"}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-center text-xs text-slate-600">
+                              {st.preferencesTotal > 0
+                                ? `${st.preferencesMatched}/${st.preferencesTotal}`
+                                : "—"}
+                            </td>
+                            <td className="px-6 py-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedProfessorId(st.professorId);
+                                  setActiveTab("profGrade");
+                                }}
+                                className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                              >
+                                Ver Agenda →
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}

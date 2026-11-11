@@ -2,15 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 import { getApiBaseUrl } from "@/services/api";
-import { ProfessorGradeEntry, ProfessorGradeData } from "@/types";
+import { ProfessorGradeEntry, ProfessorGradeData, GradeAuditResponse, BackupPayload } from "@/types";
+
+function parsePositiveId(value: unknown, fieldLabel = "ID"): number {
+  const num = Number(value);
+  if (!Number.isInteger(num) || num <= 0) {
+    throw new Error(`${fieldLabel} inválido.`);
+  }
+  return num;
+}
 
 async function handleApiResponse(response: Response, fallbackMsg: string) {
   if (!response.ok) {
-    if (response.status === 409) {
-      throw new Error("Registro já cadastrado (conflito de duplicidade).");
-    }
     const text = await response.text().catch(() => "");
-    throw new Error(text ? `${fallbackMsg} (${response.status}): ${text}` : `${fallbackMsg}: ${response.status}`);
+    let parsedMessage = "";
+    try {
+      const json = JSON.parse(text);
+      parsedMessage = json.message || json.error || "";
+    } catch {
+      parsedMessage = text;
+    }
+    if (response.status === 409) {
+      throw new Error(parsedMessage || "Registro já cadastrado ou conflito de operação (409).");
+    }
+    throw new Error(parsedMessage ? `${fallbackMsg}: ${parsedMessage}` : `${fallbackMsg} (${response.status})`);
   }
 }
 
@@ -471,10 +486,7 @@ export async function createPreference(formData: FormData) {
 
 export async function deletePreference(formData: FormData) {
   const apiBase = getApiBaseUrl();
-  const id = Number(formData.get("preferenceId") ?? 0);
-  if (!id) {
-    return;
-  }
+  const id = parsePositiveId(formData.get("preferenceId"), "Preferência");
 
   const response = await fetch(`${apiBase}/api/preferences/${id}`, {
     method: "DELETE",
@@ -483,3 +495,63 @@ export async function deletePreference(formData: FormData) {
   await handleApiResponse(response, "Erro ao deletar preferência");
   revalidatePath("/");
 }
+
+export async function fetchGradeAudit(): Promise<GradeAuditResponse | null> {
+  const apiBase = getApiBaseUrl();
+  const response = await fetch(`${apiBase}/api/grade/auditoria`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    return null;
+  }
+  return response.json();
+}
+
+export async function moveOrSwapGradeEntry(params: {
+  classGroupId: number;
+  fromDay: number;
+  fromStartTime: string;
+  toDay: number;
+  toStartTime: string;
+  force?: boolean;
+}): Promise<{ swapped: boolean; message: string }> {
+  const apiBase = getApiBaseUrl();
+  const classGroupId = parsePositiveId(params.classGroupId, "Turma");
+  const response = await fetch(`${apiBase}/api/grade/mover`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      classGroupId,
+      fromDay: params.fromDay,
+      fromStartTime: params.fromStartTime,
+      toDay: params.toDay,
+      toStartTime: params.toStartTime,
+      force: Boolean(params.force),
+    }),
+  });
+
+  await handleApiResponse(response, "Não foi possível mover/trocar a aula");
+  revalidatePath("/");
+  return response.json();
+}
+
+export async function exportBackupJson(): Promise<BackupPayload> {
+  const apiBase = getApiBaseUrl();
+  const response = await fetch(`${apiBase}/api/backup`, {
+    cache: "no-store",
+  });
+  await handleApiResponse(response, "Erro ao exportar backup");
+  return response.json();
+}
+
+export async function importBackupJson(backup: BackupPayload) {
+  const apiBase = getApiBaseUrl();
+  const response = await fetch(`${apiBase}/api/backup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(backup),
+  });
+  await handleApiResponse(response, "Erro ao restaurar backup");
+  revalidatePath("/");
+}
+
