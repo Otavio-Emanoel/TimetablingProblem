@@ -3,7 +3,7 @@
  * Ajustado para Enums do Java (MONDAY, etc) e Horários (HH:mm:ss)
  */
 
-const API_BASE = "http://localhost:8080";
+const API_BASE = process.env.API_BASE || process.env.API_BASE_URL || "http://localhost:8080";
 
 // --- HELPERS ---
 const DIAS_SEMANA_MAP = {

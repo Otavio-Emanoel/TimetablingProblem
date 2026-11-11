@@ -3,7 +3,7 @@
  * Seed completo e exato mapeado diretamente do cronograma oficial!
  */
 
-const API_BASE = "http://localhost:8080";
+const API_BASE = process.env.API_BASE || process.env.API_BASE_URL || "http://localhost:8080";
 
 const DIAS_SEMANA_MAP = {
   1: "MONDAY", 2: "TUESDAY", 3: "WEDNESDAY", 4: "THURSDAY", 5: "FRIDAY"

@@ -3,7 +3,7 @@
  * Cria apenas 2 turmas e poucas aulas para facilitar a visualização.
  */
 
-const API_BASE = "http://localhost:8080"; // Ajuste se seu backend estiver em outra porta
+const API_BASE = process.env.API_BASE || process.env.API_BASE_URL || "http://localhost:8080"; // Ajuste se seu backend estiver em outra porta
 
 // --- DADOS SIMPLIFICADOS ---
 
