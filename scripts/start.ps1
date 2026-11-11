@@ -1,4 +1,4 @@
-﻿# ETEC Timetabling (EtecFlow) - Script de Inicialização (Windows PowerShell)
+# ETEC Timetabling (EtecFlow) - Script de Inicialização (Windows PowerShell)
 
 $ErrorActionPreference = "Stop"
 

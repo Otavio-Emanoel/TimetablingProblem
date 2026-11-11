@@ -7,14 +7,24 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "timeslot")
+@Table(
+    name = "timeslot",
+    indexes = {
+        @Index(name = "idx_timeslot_shift_day", columnList = "shiftType, dayOfWeek, startTime")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_timeslot_day_time_shift", columnNames = {"dayOfWeek", "startTime", "endTime", "shiftType"})
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor

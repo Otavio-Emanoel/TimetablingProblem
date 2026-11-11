@@ -4,6 +4,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -13,7 +14,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "professor_unavailability")
+@Table(
+    name = "professor_unavailability",
+    indexes = {
+        @Index(name = "idx_unavail_professor", columnList = "professor_id")
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor

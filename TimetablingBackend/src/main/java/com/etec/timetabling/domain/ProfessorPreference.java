@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -22,7 +23,13 @@ import lombok.Setter;
  * <p>Exemplo: "Prof. Silva prefere dar Matemática na segunda-feira no 1º horário".</p>
  */
 @Entity
-@Table(name = "professor_preference")
+@Table(
+    name = "professor_preference",
+    indexes = {
+        @Index(name = "idx_pref_professor", columnList = "professor_id"),
+        @Index(name = "idx_pref_subject", columnList = "subject_id")
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor

@@ -5,11 +5,13 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
@@ -17,7 +19,15 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "schedule_entry")
+@Table(
+    name = "schedule_entry",
+    indexes = {
+        @Index(name = "idx_sched_class_group", columnList = "class_group_id"),
+        @Index(name = "idx_sched_timeslot", columnList = "timeslot_id"),
+        @Index(name = "idx_sched_subject", columnList = "subject_id"),
+        @Index(name = "idx_sched_class_slot", columnList = "class_group_id, timeslot_id")
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor
