@@ -29,6 +29,12 @@ import {
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import {
+  exportClassGradePdf,
+  exportProfessorGradePdf,
+  exportAllGradesPdf,
+} from "@/utils/pdfExport";
+import { getSubjectTheme, getLegendCategories } from "@/utils/gradeColors";
 import * as Actions from "@/app/server-actions";
 import {
   Professor,
@@ -2028,15 +2034,24 @@ export default function Dashboard({ data }: DashboardProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    exportElementToPDF(
-                      "grade-table",
-                      `grade-${selectedClassGroup?.name ?? "turma"}.pdf`,
-                      `Grade Horária - ${selectedClassGroup?.name ?? "EtecFlow"}`
-                    )
-                  }
+                  onClick={() => {
+                    const gradeItemsMap = new Map<string, { subject: string; professors: string[] }>();
+                    gradeEntries.forEach((e) => {
+                      const key = `${e.dayOfWeek}-${normalizeTime(e.startTime)}-${normalizeTime(e.endTime)}`;
+                      gradeItemsMap.set(key, { subject: e.subject, professors: e.professors });
+                    });
+
+                    exportClassGradePdf({
+                      className: selectedClassGroup?.name ?? "turma",
+                      shiftType: selectedClassGroup?.shiftType ?? "INTEGRAL",
+                      timeRows,
+                      gradeMap: gradeItemsMap,
+                      filename: `grade-${selectedClassGroup?.name ?? "turma"}.pdf`,
+                    });
+                    showToast("success", "PDF exportado com tabela compacta e colorida!");
+                  }}
                   disabled={gradeLoading || gradeEntries.length === 0}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
                 >
                   <Download size={16} /> Exportar PDF
                 </button>
@@ -2105,103 +2120,121 @@ export default function Dashboard({ data }: DashboardProps) {
                 Nenhuma aula alocada para esta turma. Rode o solver primeiro.
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
-                <table className="w-full" id="grade-table">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Horário
-                      </th>
-                      {["Segunda", "Terça", "Quarta", "Quinta", "Sexta"].map((day) => (
-                        <th
-                          key={day}
-                          scope="col"
-                          className="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider"
-                        >
-                          {day}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {timeRows.map((row, rowIdx) => (
-                      <tr key={`${row.startTime}-${row.endTime}`}>
-                        <td className="px-6 py-4 font-medium text-slate-800 whitespace-nowrap">
-                          {row.startTime} - {row.endTime}
-                        </td>
-                        {[1, 2, 3, 4, 5].map((dayOfWeek) => {
-                          const key = `${dayOfWeek}-${row.startTime}-${row.endTime}`;
-                          const entry = gradeMap.get(key);
-                          const isSelectedSource =
-                            movingSlot?.dayOfWeek === dayOfWeek &&
-                            movingSlot?.startTime === row.startTime;
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2 py-2 px-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-600">
+                  <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider mr-1">Áreas:</span>
+                  {getLegendCategories().map((cat) => (
+                    <span
+                      key={cat.name}
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border ${cat.theme.bgClass} ${cat.theme.borderClass} ${cat.theme.textClass}`}
+                    >
+                      <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: `rgb(${cat.theme.pdfFill.join(",")})` }} />
+                      {cat.name}
+                    </span>
+                  ))}
+                </div>
 
-                          return (
-                            <td
-                              key={`${rowIdx}-${dayOfWeek}`}
-                              className="px-4 py-3 text-center border-l border-slate-100"
-                            >
-                              {entry ? (
-                                <div
-                                  className={`space-y-1 p-2 rounded-lg border transition-all ${
-                                    isSelectedSource
-                                      ? "bg-amber-50 border-amber-400 ring-2 ring-amber-300"
-                                      : "bg-blue-50 border-blue-100"
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between gap-1">
-                                    <p className="text-sm font-bold text-blue-800 truncate">
-                                      {entry.subject}
-                                    </p>
-                                    {!movingSlot ? (
-                                      <button
-                                        type="button"
-                                        title="Mover ou trocar esta aula de horário"
-                                        onClick={() =>
-                                          setMovingSlot({
-                                            dayOfWeek,
-                                            startTime: row.startTime,
-                                            subject: entry.subject,
-                                          })
-                                        }
-                                        className="text-blue-400 hover:text-blue-700 p-0.5 rounded"
-                                      >
-                                        <ArrowLeftRight size={13} />
-                                      </button>
-                                    ) : !isSelectedSource ? (
-                                      <button
-                                        type="button"
-                                        disabled={isPending}
-                                        onClick={() => handleMoveSlotTo(dayOfWeek, row.startTime)}
-                                        className="text-[10px] font-bold bg-amber-600 text-white px-1.5 py-0.5 rounded hover:bg-amber-700"
-                                      >
-                                        Trocar ⇄
-                                      </button>
-                                    ) : null}
-                                  </div>
-                                  <p className="text-xs text-blue-600 font-medium">
-                                    {entry.professors.join(", ")}
-                                  </p>
-                                </div>
-                              ) : movingSlot ? (
-                                <button
-                                  type="button"
-                                  disabled={isPending}
-                                  onClick={() => handleMoveSlotTo(dayOfWeek, row.startTime)}
-                                  className="w-full py-2 px-2 rounded-lg border border-dashed border-amber-300 bg-amber-50/50 hover:bg-amber-100 text-amber-800 text-xs font-semibold transition-colors"
-                                >
-                                  Mover para cá
-                                </button>
-                              ) : (
-                                <span className="text-slate-300 text-xs">-</span>
-                              )}
-                            </td>
-                          );
-                        })}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-xs">
+                  <table className="w-full" id="grade-table">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th scope="col" className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                          Horário
+                        </th>
+                        {["Segunda", "Terça", "Quarta", "Quinta", "Sexta"].map((day) => (
+                          <th
+                            key={day}
+                            scope="col"
+                            className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider"
+                          >
+                            {day}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {timeRows.map((row, rowIdx) => (
+                        <tr key={`${row.startTime}-${row.endTime}`}>
+                          <td className="px-5 py-3 font-semibold text-slate-700 text-xs whitespace-nowrap bg-slate-50/50">
+                            {row.startTime} - {row.endTime}
+                          </td>
+                          {[1, 2, 3, 4, 5].map((dayOfWeek) => {
+                            const key = `${dayOfWeek}-${row.startTime}-${row.endTime}`;
+                            const entry = gradeMap.get(key);
+                            const isSelectedSource =
+                              movingSlot?.dayOfWeek === dayOfWeek &&
+                              movingSlot?.startTime === row.startTime;
+                            const theme = entry ? getSubjectTheme(entry.subject) : null;
+
+                            return (
+                              <td
+                                key={`${rowIdx}-${dayOfWeek}`}
+                                className="px-3 py-2 text-center border-l border-slate-100 min-w-[130px]"
+                              >
+                                {entry && theme ? (
+                                  <div
+                                    className={`space-y-1 p-2 rounded-lg border transition-all ${
+                                      isSelectedSource
+                                        ? "bg-amber-50 border-amber-400 ring-2 ring-amber-300"
+                                        : `${theme.bgClass} ${theme.borderClass}`
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between gap-1">
+                                      <p className={`text-xs font-bold truncate ${theme.textClass}`}>
+                                        {entry.subject}
+                                      </p>
+                                      {!movingSlot ? (
+                                        <button
+                                          type="button"
+                                          title="Mover ou trocar esta aula de horário"
+                                          onClick={() =>
+                                            setMovingSlot({
+                                              dayOfWeek,
+                                              startTime: row.startTime,
+                                              subject: entry.subject,
+                                            })
+                                          }
+                                          className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
+                                        >
+                                          <ArrowLeftRight size={12} />
+                                        </button>
+                                      ) : !isSelectedSource ? (
+                                        <button
+                                          type="button"
+                                          disabled={isPending}
+                                          onClick={() => handleMoveSlotTo(dayOfWeek, row.startTime)}
+                                          className="text-[10px] font-bold bg-amber-600 text-white px-1.5 py-0.5 rounded hover:bg-amber-700"
+                                        >
+                                          Trocar ⇄
+                                        </button>
+                                      ) : null}
+                                    </div>
+                                    <p className={`text-[11px] font-medium truncate ${theme.subtextClass}`}>
+                                      {entry.professors.join(", ")}
+                                    </p>
+                                  </div>
+                                ) : movingSlot ? (
+                                  <button
+                                    type="button"
+                                    disabled={isPending}
+                                    onClick={() => handleMoveSlotTo(dayOfWeek, row.startTime)}
+                                    className="w-full py-2 px-2 rounded-lg border border-dashed border-amber-300 bg-amber-50/50 hover:bg-amber-100 text-amber-800 text-xs font-semibold transition-colors"
+                                  >
+                                    Mover para cá
+                                  </button>
+                                ) : (
+                                  <div className="py-2 px-1 rounded-lg border border-dashed border-slate-200 bg-slate-50/40 text-slate-400 text-xs">
+                                    — Livre —
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -2245,14 +2278,23 @@ export default function Dashboard({ data }: DashboardProps) {
                   onClick={() => {
                     const profName =
                       data.professors.find((p) => p.id === selectedProfessorId)?.name ?? "professor";
-                    exportElementToPDF(
-                      "prof-grade-table",
-                      `agenda-${profName}.pdf`,
-                      `Agenda do Professor - ${profName}`
-                    );
+
+                    const profItemsMap = new Map<string, { subject: string; classGroupName: string }>();
+                    profGradeEntries.forEach((e) => {
+                      const key = `${e.dayOfWeek}-${normalizeTime(e.startTime)}-${normalizeTime(e.endTime)}`;
+                      profItemsMap.set(key, { subject: e.subject, classGroupName: `${e.classGroup} (${e.shiftType})` });
+                    });
+
+                    exportProfessorGradePdf({
+                      professorName: profName,
+                      timeRows: allUniqueTimeRows,
+                      gradeMap: profItemsMap,
+                      filename: `agenda-${profName.toLowerCase().replace(/\s+/g, "-")}.pdf`,
+                    });
+                    showToast("success", "Agenda em PDF exportada com tabela compacta e colorida!");
                   }}
                   disabled={profGradeLoading || profGradeEntries.length === 0}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
                 >
                   <Download size={16} /> Exportar PDF
                 </button>
@@ -2289,58 +2331,76 @@ export default function Dashboard({ data }: DashboardProps) {
                 Nenhuma aula alocada para este professor. Rode o solver primeiro.
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
-                <table className="w-full" id="prof-grade-table">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Horário
-                      </th>
-                      {["Segunda", "Terça", "Quarta", "Quinta", "Sexta"].map((day) => (
-                        <th
-                          key={day}
-                          scope="col"
-                          className="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider"
-                        >
-                          {day}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {allUniqueTimeRows.map((row, rowIdx) => (
-                      <tr key={`${row.startTime}-${row.endTime}`}>
-                        <td className="px-6 py-4 font-medium text-slate-800 whitespace-nowrap">
-                          {row.startTime} - {row.endTime}
-                        </td>
-                        {[1, 2, 3, 4, 5].map((dayOfWeek) => {
-                          const key = `${dayOfWeek}-${row.startTime}-${row.endTime}`;
-                          const entry = profGradeMap.get(key);
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2 py-2 px-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-600">
+                  <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider mr-1">Áreas:</span>
+                  {getLegendCategories().map((cat) => (
+                    <span
+                      key={cat.name}
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border ${cat.theme.bgClass} ${cat.theme.borderClass} ${cat.theme.textClass}`}
+                    >
+                      <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: `rgb(${cat.theme.pdfFill.join(",")})` }} />
+                      {cat.name}
+                    </span>
+                  ))}
+                </div>
 
-                          return (
-                            <td
-                              key={`${rowIdx}-${dayOfWeek}`}
-                              className="px-6 py-4 text-center border-l border-slate-100"
-                            >
-                              {entry ? (
-                                <div className="space-y-1 bg-indigo-50 p-2 rounded-lg border border-indigo-100">
-                                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-600 text-white text-[10px] font-bold">
-                                    Turma {entry.classGroup} ({entry.shiftType})
-                                  </span>
-                                  <p className="text-xs font-bold text-indigo-900">
-                                    {entry.subject}
-                                  </p>
-                                </div>
-                              ) : (
-                                <span className="text-slate-300 text-xs">-</span>
-                              )}
-                            </td>
-                          );
-                        })}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-xs">
+                  <table className="w-full" id="prof-grade-table">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th scope="col" className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                          Horário
+                        </th>
+                        {["Segunda", "Terça", "Quarta", "Quinta", "Sexta"].map((day) => (
+                          <th
+                            key={day}
+                            scope="col"
+                            className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider"
+                          >
+                            {day}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {allUniqueTimeRows.map((row, rowIdx) => (
+                        <tr key={`${row.startTime}-${row.endTime}`}>
+                          <td className="px-5 py-3 font-semibold text-slate-700 text-xs whitespace-nowrap bg-slate-50/50">
+                            {row.startTime} - {row.endTime}
+                          </td>
+                          {[1, 2, 3, 4, 5].map((dayOfWeek) => {
+                            const key = `${dayOfWeek}-${row.startTime}-${row.endTime}`;
+                            const entry = profGradeMap.get(key);
+                            const theme = entry ? getSubjectTheme(entry.subject) : null;
+
+                            return (
+                              <td
+                                key={`${rowIdx}-${dayOfWeek}`}
+                                className="px-3 py-2 text-center border-l border-slate-100 min-w-[130px]"
+                              >
+                                {entry && theme ? (
+                                  <div className={`space-y-1 p-2 rounded-lg border transition-all ${theme.bgClass} ${theme.borderClass}`}>
+                                    <span className="inline-block px-2 py-0.5 rounded bg-slate-900 text-white text-[10px] font-bold">
+                                      {entry.classGroup} ({entry.shiftType})
+                                    </span>
+                                    <p className={`text-xs font-bold truncate ${theme.textClass}`}>
+                                      {entry.subject}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="py-2 px-1 rounded-lg border border-dashed border-slate-200 bg-slate-50/40 text-slate-400 text-xs">
+                                    — Livre —
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -2354,15 +2414,42 @@ export default function Dashboard({ data }: DashboardProps) {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() =>
-                    exportElementToPDF(
-                      "all-grades-container",
-                      "todas-as-grades.pdf",
-                      "Todas as Grades - EtecFlow"
-                    )
-                  }
+                  onClick={() => {
+                    const regRows = Array.from(
+                      new Map(
+                        data.timeslots
+                          .filter((s) => s.shiftType === "REGULAR")
+                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                          .map((s) => [
+                            `${normalizeTime(s.startTime)}-${normalizeTime(s.endTime)}`,
+                            { startTime: normalizeTime(s.startTime), endTime: normalizeTime(s.endTime) },
+                          ])
+                      ).values()
+                    );
+                    const intRows = Array.from(
+                      new Map(
+                        data.timeslots
+                          .filter((s) => s.shiftType === "INTEGRAL")
+                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                          .map((s) => [
+                            `${normalizeTime(s.startTime)}-${normalizeTime(s.endTime)}`,
+                            { startTime: normalizeTime(s.startTime), endTime: normalizeTime(s.endTime) },
+                          ])
+                      ).values()
+                    );
+
+                    exportAllGradesPdf({
+                      allGradesData,
+                      timeRowsMap: {
+                        REGULAR: regRows,
+                        INTEGRAL: intRows,
+                      },
+                      filename: "todas-as-grades-etec.pdf",
+                    });
+                    showToast("success", "Todas as grades exportadas em PDF compacto e colorido!");
+                  }}
                   disabled={allGradesLoading || Object.keys(allGradesData).length === 0}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
                 >
                   <Download size={16} /> Exportar PDF
                 </button>
@@ -2493,26 +2580,29 @@ export default function Dashboard({ data }: DashboardProps) {
                                   {[1, 2, 3, 4, 5].map((dayOfWeek) => {
                                     const key = `${dayOfWeek}-${row.startTime}-${row.endTime}`;
                                     const entry = classGradeMap.get(key);
+                                    const theme = entry ? getSubjectTheme(entry.subject) : null;
                                     return (
                                       <td
                                         key={dayOfWeek}
-                                        className="px-4 py-3 text-center border-l border-slate-100"
+                                        className="px-3 py-2 text-center border-l border-slate-100 min-w-[120px]"
                                       >
-                                        {entry ? (
+                                        {entry && theme ? (
                                           <div
-                                            className={`space-y-0.5 ${colors.bg} p-2 rounded-lg border ${colors.border}`}
+                                            className={`space-y-0.5 ${theme.bgClass} p-1.5 rounded-lg border ${theme.borderClass}`}
                                           >
-                                            <p className={`text-xs font-bold ${colors.text}`}>
+                                            <p className={`text-xs font-bold truncate ${theme.textClass}`}>
                                               {entry.subject}
                                             </p>
                                             <p
-                                              className={`text-[10px] ${colors.subText} font-medium`}
+                                              className={`text-[10px] ${theme.subtextClass} font-medium truncate`}
                                             >
                                               {entry.professors.join(", ")}
                                             </p>
                                           </div>
                                         ) : (
-                                          <span className="text-slate-300 text-xs">-</span>
+                                          <div className="py-1.5 px-1 rounded border border-dashed border-slate-200 bg-slate-50/40 text-slate-400 text-[11px]">
+                                            — Livre —
+                                          </div>
                                         )}
                                       </td>
                                     );
