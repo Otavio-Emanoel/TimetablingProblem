@@ -83,6 +83,24 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodNotAllowed(
+        org.springframework.web.HttpRequestMethodNotSupportedException ex
+    ) {
+        String supported = ex.getSupportedHttpMethods() == null
+            ? ""
+            : " Permitidos: " + ex.getSupportedHttpMethods();
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(
+            new ApiErrorResponse(
+                405,
+                "Method Not Allowed",
+                "Metodo HTTP nao suportado para esta rota." + supported,
+                Instant.now().toString(),
+                null
+            )
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex) {
         log.error("Erro inesperado processando requisicao", ex);

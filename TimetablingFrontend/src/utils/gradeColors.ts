@@ -161,6 +161,17 @@ export function getSubjectTheme(subjectName?: string): ColorTheme {
     return THEMES.matematica;
   }
 
+  // Educação Física / Ergonomia (antes de Natureza para não colidir com "física")
+  if (
+    n.includes("educação física") ||
+    n.includes("educacao fisica") ||
+    n.includes("ed. fis") ||
+    n.includes("ergonomia") ||
+    n.includes("ergo")
+  ) {
+    return THEMES.educacaoFisica;
+  }
+
   // Ciências da Natureza
   if (
     n.includes("físic") ||
@@ -182,16 +193,6 @@ export function getSubjectTheme(subjectName?: string): ColorTheme {
     n.includes("eachsa")
   ) {
     return THEMES.humanas;
-  }
-
-  // Educação Física / Ergonomia
-  if (
-    n.includes("educação física") ||
-    n.includes("ed. fis") ||
-    n.includes("ergonomia") ||
-    n.includes("ergo")
-  ) {
-    return THEMES.educacaoFisica;
   }
 
   // Artes e Design

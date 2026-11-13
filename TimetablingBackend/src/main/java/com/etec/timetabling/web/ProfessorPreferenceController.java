@@ -123,7 +123,10 @@ public class ProfessorPreferenceController {
         pref.setType(resolvedType);
 
         // Matéria opcional
-        if (req.subjectId() != null && req.subjectId() > 0) {
+        if (req.subjectId() != null) {
+            if (req.subjectId() <= 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "subjectId deve ser positivo"));
+            }
             Subject subject = subjectRepository.findById(req.subjectId()).orElse(null);
             if (subject == null) {
                 return ResponseEntity.status(404).body(Map.of("error", "Matéria não encontrada"));

@@ -27,13 +27,6 @@ import {
   ArrowLeftRight,
   ShieldCheck,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
-import {
-  exportClassGradePdf,
-  exportProfessorGradePdf,
-  exportAllGradesPdf,
-} from "@/utils/pdfExport";
 import { getSubjectTheme, getLegendCategories } from "@/utils/gradeColors";
 import * as Actions from "@/app/server-actions";
 import {
@@ -415,25 +408,42 @@ export default function Dashboard({ data }: DashboardProps) {
     }
   }, [activeTab, loadAudit]);
 
-  const sanitizeCsvCell = (val: string) => {
-    const clean = (val ?? "").replace(/"/g, '""');
-    // Previne CSV Formula Injection (CWE-1236)
-    if (/^[=+\-@\t\r]/.test(clean)) {
-      return `"'${clean}"`;
-    }
-    return `"${clean}"`;
-  };
+  const downloadBackendExport = async (
+    exportSubPath: string,
+    fallbackFilename: string,
+    successMessage: string
+  ) => {
+    try {
+      const response = await fetch(`/api/export/${exportSubPath}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        let errorMessage = "Erro ao gerar arquivo para exportação.";
+        try {
+          const payload = (await response.json()) as { error?: string; message?: string };
+          errorMessage = payload.message || payload.error || errorMessage;
+        } catch {
+          // ignore non-JSON error body
+        }
+        showToast("error", errorMessage);
+        return;
+      }
 
-  const downloadCsv = (filename: string, rows: string[][]) => {
-    const csvContent =
-      "\uFEFF" + rows.map((r) => r.map(sanitizeCsvCell).join(";")).join("\r\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const filenameMatch = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+      const filename = filenameMatch?.[1]?.trim() || fallbackFilename;
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("success", successMessage);
+    } catch {
+      showToast("error", "Falha de conexão ao exportar arquivo.");
+    }
   };
 
   const handleExportBackup = () => {
@@ -666,126 +676,6 @@ export default function Dashboard({ data }: DashboardProps) {
       setSolverStatus("error");
       const message = error instanceof Error ? error.message : "Erro desconhecido";
       setSolverMessage(`Erro de conexão: ${message}`);
-    }
-  };
-
-  // Copia estilos computados do DOM original para o clone (evita funções CSS não suportadas como lab())
-  const copyComputedStylesToClone = (originalRoot: HTMLElement, clonedRoot: HTMLElement) => {
-    const sanitizeValue = (prop: string, value: string) => {
-      const lower = value.toLowerCase();
-      const hasUnsupportedColor =
-        lower.includes("lab(") ||
-        lower.includes("lch(") ||
-        lower.includes("oklch(") ||
-        lower.includes("color(");
-
-      if (!hasUnsupportedColor) return value;
-
-      if (prop.includes("box-shadow") || prop.includes("text-shadow")) {
-        return "none";
-      }
-
-      if (prop.includes("background")) return "#ffffff";
-      if (prop.includes("border")) return "#e2e8f0";
-      if (prop.includes("color")) return "#0f172a";
-      if (prop.includes("fill") || prop.includes("stroke")) return "#0f172a";
-
-      return "";
-    };
-
-    try {
-      const head = clonedRoot.ownerDocument?.head;
-      if (head) {
-        head.querySelectorAll("style, link[rel='stylesheet']").forEach((node) => node.remove());
-      }
-
-      const rootStyle = window.getComputedStyle(originalRoot);
-      for (let i = 0; i < rootStyle.length; i++) {
-        const prop = rootStyle[i];
-        const val = rootStyle.getPropertyValue(prop);
-        const prio = rootStyle.getPropertyPriority(prop);
-        const sanitized = sanitizeValue(prop, val);
-        if (!sanitized) continue;
-        try {
-          clonedRoot.style.setProperty(prop, sanitized, prio);
-        } catch {}
-      }
-
-      const originals = Array.from(originalRoot.querySelectorAll<HTMLElement>("*"));
-      const clones = Array.from(clonedRoot.querySelectorAll<HTMLElement>("*"));
-
-      const len = Math.min(originals.length, clones.length);
-      for (let idx = 0; idx < len; idx++) {
-        const o = originals[idx];
-        const c = clones[idx];
-        const cs = window.getComputedStyle(o);
-        for (let j = 0; j < cs.length; j++) {
-          const prop = cs[j];
-          const val = cs.getPropertyValue(prop);
-          const prio = cs.getPropertyPriority(prop);
-          const sanitized = sanitizeValue(prop, val);
-          if (!sanitized) continue;
-          try {
-            c.style.setProperty(prop, sanitized, prio);
-          } catch {}
-        }
-      }
-    } catch (err) {
-      console.warn("copyComputedStylesToClone falhou:", err);
-    }
-  };
-
-  const exportElementToPDF = async (elementId: string, filename: string, title: string) => {
-    const targetEl = document.getElementById(elementId);
-    if (!targetEl) {
-      showToast("error", "Tabela não encontrada para exportação.");
-      return;
-    }
-
-    try {
-      const canvas = await html2canvas(targetEl, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        onclone: (clonedDoc) => {
-          try {
-            const cloned = clonedDoc.getElementById(elementId);
-            if (cloned) copyComputedStylesToClone(targetEl, cloned);
-          } catch {
-            // ignore
-          }
-        },
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
-      });
-
-      const imgWidth = 277;
-      const pageHeight = 190;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      pdf.setFontSize(14);
-      pdf.text(title, 10, 8);
-
-      if (imgHeight <= pageHeight) {
-        pdf.addImage(imgData, "PNG", 10, 12, imgWidth, imgHeight);
-      } else {
-        let yOffset = 0;
-        while (yOffset < imgHeight) {
-          if (yOffset > 0) pdf.addPage();
-          pdf.addImage(imgData, "PNG", 10, 12 - yOffset, imgWidth, imgHeight);
-          yOffset += pageHeight;
-        }
-      }
-
-      pdf.save(filename);
-    } catch (error) {
-      console.error("Erro ao exportar PDF:", error);
-      showToast("error", "Erro ao exportar PDF.");
     }
   };
 
@@ -2017,17 +1907,14 @@ export default function Dashboard({ data }: DashboardProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    const header = ["Horário", "Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
-                    const rows = timeRows.map((row) => [
-                      `${row.startTime} - ${row.endTime}`,
-                      ...[1, 2, 3, 4, 5].map((d) => {
-                        const e = gradeMap.get(`${d}-${row.startTime}-${row.endTime}`);
-                        return e ? `${e.subject} (${e.professors.join(", ")})` : "";
-                      }),
-                    ]);
-                    downloadCsv(`grade-${selectedClassGroup?.name ?? "turma"}.csv`, [header, ...rows]);
+                    if (!selectedClassGroupId) return;
+                    void downloadBackendExport(
+                      `csv/turma/${selectedClassGroupId}`,
+                      `grade-${selectedClassGroup?.name ?? "turma"}.csv`,
+                      "CSV exportado com sucesso!"
+                    );
                   }}
-                  disabled={gradeLoading || gradeEntries.length === 0}
+                  disabled={gradeLoading || gradeEntries.length === 0 || !selectedClassGroupId}
                   className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   <FileSpreadsheet size={16} /> Exportar CSV
@@ -2035,22 +1922,14 @@ export default function Dashboard({ data }: DashboardProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    const gradeItemsMap = new Map<string, { subject: string; professors: string[] }>();
-                    gradeEntries.forEach((e) => {
-                      const key = `${e.dayOfWeek}-${normalizeTime(e.startTime)}-${normalizeTime(e.endTime)}`;
-                      gradeItemsMap.set(key, { subject: e.subject, professors: e.professors });
-                    });
-
-                    exportClassGradePdf({
-                      className: selectedClassGroup?.name ?? "turma",
-                      shiftType: selectedClassGroup?.shiftType ?? "INTEGRAL",
-                      timeRows,
-                      gradeMap: gradeItemsMap,
-                      filename: `grade-${selectedClassGroup?.name ?? "turma"}.pdf`,
-                    });
-                    showToast("success", "PDF exportado com tabela compacta e colorida!");
+                    if (!selectedClassGroupId) return;
+                    void downloadBackendExport(
+                      `pdf/turma/${selectedClassGroupId}`,
+                      `grade-${selectedClassGroup?.name ?? "turma"}.pdf`,
+                      "PDF gerado pelo backend com tabela compacta e colorida!"
+                    );
                   }}
-                  disabled={gradeLoading || gradeEntries.length === 0}
+                  disabled={gradeLoading || gradeEntries.length === 0 || !selectedClassGroupId}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
                 >
                   <Download size={16} /> Exportar PDF
@@ -2256,19 +2135,16 @@ export default function Dashboard({ data }: DashboardProps) {
                 <button
                   type="button"
                   onClick={() => {
+                    if (!selectedProfessorId) return;
                     const profName =
                       data.professors.find((p) => p.id === selectedProfessorId)?.name ?? "professor";
-                    const header = ["Horário", "Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
-                    const rows = allUniqueTimeRows.map((row) => [
-                      `${row.startTime} - ${row.endTime}`,
-                      ...[1, 2, 3, 4, 5].map((d) => {
-                        const e = profGradeMap.get(`${d}-${row.startTime}-${row.endTime}`);
-                        return e ? `${e.subject} - Turma ${e.classGroup} (${e.shiftType})` : "";
-                      }),
-                    ]);
-                    downloadCsv(`agenda-${profName}.csv`, [header, ...rows]);
+                    void downloadBackendExport(
+                      `csv/professor/${selectedProfessorId}`,
+                      `agenda-${profName}.csv`,
+                      "CSV da agenda exportado com sucesso!"
+                    );
                   }}
-                  disabled={profGradeLoading || profGradeEntries.length === 0}
+                  disabled={profGradeLoading || profGradeEntries.length === 0 || !selectedProfessorId}
                   className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   <FileSpreadsheet size={16} /> Exportar CSV
@@ -2276,24 +2152,16 @@ export default function Dashboard({ data }: DashboardProps) {
                 <button
                   type="button"
                   onClick={() => {
+                    if (!selectedProfessorId) return;
                     const profName =
                       data.professors.find((p) => p.id === selectedProfessorId)?.name ?? "professor";
-
-                    const profItemsMap = new Map<string, { subject: string; classGroupName: string }>();
-                    profGradeEntries.forEach((e) => {
-                      const key = `${e.dayOfWeek}-${normalizeTime(e.startTime)}-${normalizeTime(e.endTime)}`;
-                      profItemsMap.set(key, { subject: e.subject, classGroupName: `${e.classGroup} (${e.shiftType})` });
-                    });
-
-                    exportProfessorGradePdf({
-                      professorName: profName,
-                      timeRows: allUniqueTimeRows,
-                      gradeMap: profItemsMap,
-                      filename: `agenda-${profName.toLowerCase().replace(/\s+/g, "-")}.pdf`,
-                    });
-                    showToast("success", "Agenda em PDF exportada com tabela compacta e colorida!");
+                    void downloadBackendExport(
+                      `pdf/professor/${selectedProfessorId}`,
+                      `agenda-${profName.toLowerCase().replace(/\s+/g, "-")}.pdf`,
+                      "Agenda em PDF gerada pelo backend!"
+                    );
                   }}
-                  disabled={profGradeLoading || profGradeEntries.length === 0}
+                  disabled={profGradeLoading || profGradeEntries.length === 0 || !selectedProfessorId}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
                 >
                   <Download size={16} /> Exportar PDF
@@ -2415,38 +2283,25 @@ export default function Dashboard({ data }: DashboardProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    const regRows = Array.from(
-                      new Map(
-                        data.timeslots
-                          .filter((s) => s.shiftType === "REGULAR")
-                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                          .map((s) => [
-                            `${normalizeTime(s.startTime)}-${normalizeTime(s.endTime)}`,
-                            { startTime: normalizeTime(s.startTime), endTime: normalizeTime(s.endTime) },
-                          ])
-                      ).values()
+                    void downloadBackendExport(
+                      "csv/todas",
+                      "grade-etec-consolidada.csv",
+                      "CSV consolidado exportado com sucesso!"
                     );
-                    const intRows = Array.from(
-                      new Map(
-                        data.timeslots
-                          .filter((s) => s.shiftType === "INTEGRAL")
-                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                          .map((s) => [
-                            `${normalizeTime(s.startTime)}-${normalizeTime(s.endTime)}`,
-                            { startTime: normalizeTime(s.startTime), endTime: normalizeTime(s.endTime) },
-                          ])
-                      ).values()
+                  }}
+                  disabled={allGradesLoading || Object.keys(allGradesData).length === 0}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  <FileSpreadsheet size={16} /> Exportar CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void downloadBackendExport(
+                      "pdf/todas",
+                      "todas-as-grades-etec.pdf",
+                      "Todas as grades exportadas em PDF compacto pelo backend!"
                     );
-
-                    exportAllGradesPdf({
-                      allGradesData,
-                      timeRowsMap: {
-                        REGULAR: regRows,
-                        INTEGRAL: intRows,
-                      },
-                      filename: "todas-as-grades-etec.pdf",
-                    });
-                    showToast("success", "Todas as grades exportadas em PDF compacto e colorido!");
                   }}
                   disabled={allGradesLoading || Object.keys(allGradesData).length === 0}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
@@ -2507,26 +2362,6 @@ export default function Dashboard({ data }: DashboardProps) {
                     INTEGRAL: "from-indigo-600 to-blue-600",
                     REGULAR: "from-emerald-600 to-teal-600",
                   };
-
-                  const cellColors: Record<
-                    string,
-                    { bg: string; border: string; text: string; subText: string }
-                  > = {
-                    INTEGRAL: {
-                      bg: "bg-indigo-50",
-                      border: "border-indigo-100",
-                      text: "text-indigo-800",
-                      subText: "text-indigo-600",
-                    },
-                    REGULAR: {
-                      bg: "bg-emerald-50",
-                      border: "border-emerald-100",
-                      text: "text-emerald-800",
-                      subText: "text-emerald-600",
-                    },
-                  };
-
-                  const colors = cellColors[classShift] ?? cellColors.REGULAR;
 
                   return (
                     <div
