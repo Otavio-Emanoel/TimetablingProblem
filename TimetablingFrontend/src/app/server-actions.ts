@@ -555,3 +555,35 @@ export async function importBackupJson(backup: BackupPayload) {
   revalidatePath("/");
 }
 
+export interface SeedExecutionResult {
+  presetId: string;
+  presetName: string;
+  resetPerformed: boolean;
+  professorsCreated: number;
+  professorsTotal: number;
+  classGroupsCreated: number;
+  classGroupsTotal: number;
+  timeslotsCreated: number;
+  timeslotsTotal: number;
+  subjectsCreated: number;
+  demandsCreated: number;
+  demandsTotal: number;
+  totalWeeklyLessons: number;
+}
+
+export async function applySeedPreset(
+  presetId: string = "etec-oficial",
+  reset: boolean = true
+): Promise<SeedExecutionResult> {
+  const apiBase = getApiBaseUrl();
+  const response = await fetch(
+    `${apiBase}/api/seed/${encodeURIComponent(presetId)}?reset=${reset}`,
+    {
+      method: "POST",
+    }
+  );
+  await handleApiResponse(response, "Erro ao carregar base oficial ETEC");
+  revalidatePath("/");
+  return response.json();
+}
+

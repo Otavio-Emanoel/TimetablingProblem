@@ -26,6 +26,7 @@ import {
   FileSpreadsheet,
   ArrowLeftRight,
   ShieldCheck,
+  Database,
 } from "lucide-react";
 import { getSubjectTheme, getLegendCategories } from "@/utils/gradeColors";
 import * as Actions from "@/app/server-actions";
@@ -614,6 +615,23 @@ export default function Dashboard({ data }: DashboardProps) {
     });
   };
 
+  const handleApplyOfficialSeed = () => {
+    startTransition(() => {
+      void Actions.applySeedPreset("etec-oficial", true)
+        .then((res) => {
+          showToast(
+            "success",
+            `Matriz ${res.presetName} carregada: ${res.classGroupsTotal} turmas, ${res.professorsTotal} professores e ${res.totalWeeklyLessons} aulas semanais.`
+          );
+          router.refresh();
+        })
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : "Erro ao carregar matriz ETEC";
+          showToast("error", message);
+        });
+    });
+  };
+
   const handleRunSolver = async () => {
     setSolverModalOpen(true);
     setSolverStatus("running");
@@ -923,6 +941,13 @@ export default function Dashboard({ data }: DashboardProps) {
                   onClick={() => backupInputRef.current?.click()}
                   label="Restaurar Backup"
                   icon={Upload}
+                  variant="secondary"
+                  disabled={isPending}
+                />
+                <ActionButton
+                  onClick={handleApplyOfficialSeed}
+                  label="Carregar Matriz ETEC"
+                  icon={Database}
                   variant="secondary"
                   disabled={isPending}
                 />
